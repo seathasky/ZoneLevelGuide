@@ -28,20 +28,20 @@ namespace ZoneLevelGuide
 
         public ZoneLevelWindow(ITeleporterIpc? teleporter = null) : base(
             "Zone Level Guide",
-            ImGuiWindowFlags.None) // Remove AlwaysAutoResize so window stays at set size
+            ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
             this.teleporter = teleporter;
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = new Vector2(400, 600),   // Increased from 600x300
-                MaximumSize = new Vector2(1000, 800) // Increased from 1000x800
-            };
-            tabOpen = new bool[tabInfo.Length]; // Initialize in constructor
+            // Remove size constraints for a flush, page-like look
+            // SizeConstraints = new WindowSizeConstraints
+            // {
+            //     MinimumSize = new Vector2(820, 600),
+            //     MaximumSize = new Vector2(820, 600)
+            // };
+            tabOpen = new bool[tabInfo.Length];
         }
 
         public override void Draw()
         {
-            // Set a dark gray background for the entire window
             ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.15f, 0.16f, 0.18f, 1.0f)); // dark gray
 
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.85f, 0.2f, 1.0f));
@@ -50,26 +50,10 @@ namespace ZoneLevelGuide
 
             ImGui.Spacing();
 
-            // Set window size constraints to match tab + content widths (flush, no extra spacing)
             float tabWidth = 220f;
-            float contentWidth = 600f;
-            float totalWidth = tabWidth + contentWidth; // Removed ItemSpacing.X for flush layout
-            float totalHeight = 600f;
 
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = new Vector2(totalWidth, totalHeight),
-                MaximumSize = new Vector2(totalWidth, 600)
-            };
-
-            ImGui.SetNextWindowSize(new Vector2(totalWidth, totalHeight), ImGuiCond.FirstUseEver);
-
-            // Begin horizontal layout: left = tabs, right = content
-            ImGui.BeginChild("##ZoneLevelGuideMain", new Vector2(0, 0), false);
-
-            ImGui.Columns(2, "ZoneLevelGuideColumns", true);
-
-            // --- Left: Vertical Tabs ---
+            // --- Begin horizontal layout ---
+            ImGui.BeginGroup();
             ImGui.BeginChild("##ZoneTabs", new Vector2(tabWidth, 0), true);
             int prevTab = selectedTab;
             for (int i = 0; i < tabInfo.Length; i++)
@@ -82,11 +66,13 @@ namespace ZoneLevelGuide
                 }
             }
             ImGui.EndChild();
+            ImGui.EndGroup();
 
-            ImGui.NextColumn();
+            ImGui.SameLine();
 
-            // --- Right: Content ---
-            ImGui.BeginChild("##ZoneTabContent", new Vector2(contentWidth, 0), true);
+            ImGui.BeginGroup();
+            // Remove explicit width/height, let content fill available space
+            ImGui.BeginChild("##ZoneTabContent", new Vector2(0, 0), false, ImGuiWindowFlags.HorizontalScrollbar | ImGuiWindowFlags.AlwaysVerticalScrollbar);
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -107,9 +93,7 @@ namespace ZoneLevelGuide
 
             ImGui.Spacing();
             ImGui.EndChild();
-
-            ImGui.Columns(1);
-            ImGui.EndChild();
+            ImGui.EndGroup();
 
             ImGui.PopStyleColor(); // Pop WindowBg
         }
