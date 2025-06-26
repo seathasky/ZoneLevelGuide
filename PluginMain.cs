@@ -4,7 +4,7 @@ using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using System;
 
-namespace ZoneLevels
+namespace ZoneLevelGuide
 {
     public sealed class PluginMain : IDalamudPlugin
     {
@@ -32,15 +32,15 @@ namespace ZoneLevels
             pluginInterface.UiBuilder.OpenConfigUi += OpenConfigUI;
 
             // Register command
-            this.commandManager.AddHandler("/zonelevel", new CommandInfo(OnCommand)
+            this.commandManager.AddHandler("/zoneguide", new CommandInfo(OnCommand)
             {
                 HelpMessage = "Display zone level information"
             });
 
             // Optionally register additional command
-            this.commandManager.AddHandler("/tplevels", new CommandInfo(OnCommand)
+            this.commandManager.AddHandler("/zg", new CommandInfo(OnCommand)
             {
-                HelpMessage = "Display zone level information (alternative commands)"
+                HelpMessage = "Display zone level information (alternative command)"
             });
         }
 
@@ -65,8 +65,8 @@ namespace ZoneLevels
             pluginInterface.UiBuilder.OpenConfigUi -= OpenConfigUI;
 
             windowSystem.RemoveAllWindows();
-            commandManager.RemoveHandler("/zonelevel");
-            commandManager.RemoveHandler("/tplevels");
+            commandManager.RemoveHandler("/zoneguide");
+            commandManager.RemoveHandler("/zg");
         }
     }
 }
