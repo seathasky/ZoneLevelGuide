@@ -1,0 +1,13 @@
+{
+  "Author": "Seathasky (XIV on Mac Team)",
+  "Name": "Zone Level Guide",
+  "Description": "Shows level ranges in zones",
+  "Punchline": "Never wonder 'What level is this zone?' again!",
+  "InternalName": "ZoneLevels",
+  "AssemblyVersion": "1.0.0.0",
+  "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevels/main/Images/icon.png",
+  "Tags": [ "UI", "Leveling", "Zone" ],
+  "RepoUrl": "",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 12
+}
