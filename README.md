@@ -3,6 +3,7 @@
 ![Zone Level Guide](https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/refs/heads/main/Images/ZL2.png)
 
 A Dalamud plugin that displays level ranges for all zones in FFXIV.
+Comes w/ optional Teleport buttons. Requires Teleporter plugin: https://github.com/pohky/TeleporterPlugin
 
 ## Installation
 
