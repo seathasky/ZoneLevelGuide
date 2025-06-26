@@ -5,9 +5,9 @@
   "Punchline": "Never wonder 'What level is this zone?' again!",
   "InternalName": "ZoneLevels",
   "AssemblyVersion": "1.0.0.0",
-  "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevels/main/Images/icon.png",
+  "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevelGuide/main/Images/icon.png",
   "Tags": [ "UI", "Leveling", "Zone" ],
-  "RepoUrl": "",
+  "RepoUrl": "https://github.com/seathasky/ZoneLevelGuide",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 12
 }

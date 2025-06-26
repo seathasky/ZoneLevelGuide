@@ -1,18 +1,18 @@
 [
   {
-    "Author": "YourNameSeathasky (XIV on Mac Team)",
+    "Author": "Seathasky (XIV on Mac Team)",
     "Name": "Zone Level Guide",
     "Description": "Shows level ranges in zones.",
     "InternalName": "ZoneLevelGuide",
     "AssemblyVersion": "1.0.0.0",
     "DalamudApiLevel": 12,
     "ApplicableVersion": "any",
-    "RepoUrl": "https://github.com/yourusername/ZoneLevelGuide",
+    "RepoUrl": "https://github.com/Seathasky/ZoneLevelGuide",
     "DownloadLinkInstall": "https://github.com/Seathasky/ZoneLevelGuide/releases/download/v1.0.0.0/ZoneLevelGuide.zip",
     "DownloadLinkTesting": "",
     "DownloadLinkUpdate": "",
     "Tags": [ "zone", "leveling" ],
-    "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevels/main/Images/icon.png",
+    "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevelGuide/main/Images/icon.png",
     "ImageUrls": []
   }
 ]
