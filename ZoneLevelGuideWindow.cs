@@ -1,18 +1,24 @@
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
 using System.Numerics;
+using Dalamud.Interface.Utility;
+using System;
 
-namespace ZoneLevels
+namespace ZoneLevelGuide
 {
     public class ZoneLevelWindow : Window
     {
         private int selectedTab = 0;
         private bool[] tabOpen;
+        private readonly ITeleporterIpc? teleporter;
 
         private readonly (string name, string levels)[] tabInfo = {
             ("Gridania", "1-30"),
             ("Limsa Lominsa", "1-50"),
             ("Ul'dah", "1-50"),
+            ("Mor Dhona", "45-50"),         // New tab for Mor Dhona
+            ("Coerthas", "35-53"),
             ("Ishgard", "50-60"),
             ("Far East", "60-70"),
             ("Norvrandt", "70-80"),
@@ -20,70 +26,169 @@ namespace ZoneLevels
             ("Tural & Solution", "90-100")
         };
 
-        public ZoneLevelWindow() : base(
+        public ZoneLevelWindow(ITeleporterIpc? teleporter = null) : base(
             "Zone Level Guide",
-            ImGuiWindowFlags.AlwaysAutoResize)
+            ImGuiWindowFlags.None) // Remove AlwaysAutoResize so window stays at set size
         {
+            this.teleporter = teleporter;
             SizeConstraints = new WindowSizeConstraints
             {
-                MinimumSize = new Vector2(600, 300),
-                MaximumSize = new Vector2(1000, 800)
+                MinimumSize = new Vector2(400, 600),   // Increased from 600x300
+                MaximumSize = new Vector2(1000, 800) // Increased from 1000x800
             };
             tabOpen = new bool[tabInfo.Length]; // Initialize in constructor
         }
 
         public override void Draw()
         {
-            // Draw our window contents
-            if (ImGui.BeginTabBar("ZoneTabs", ImGuiTabBarFlags.FittingPolicyScroll))
-            {
-                for (int i = 0; i < tabInfo.Length; i++)
-                {
-                    var tabId = $"###{i}";
-                    var fullLabel = $"{tabInfo[i].name} {tabInfo[i].levels}{tabId}";
-                    
-                    if (ImGui.BeginTabItem(fullLabel))
-                    {
-                        selectedTab = i;
-                        ImGui.EndTabItem();
-                    }
-                }
-                ImGui.EndTabBar();
-            }
+            // Set a dark gray background for the entire window
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.15f, 0.16f, 0.18f, 1.0f)); // dark gray
 
-            ImGui.Spacing(); // Add extra spacing after tabs
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.85f, 0.2f, 1.0f));
+            ImGui.TextWrapped("Teleport feature requires the 'Teleporter' plugin from the plugin installer.");
+            ImGui.PopStyleColor();
+
+            ImGui.Spacing();
+
+            // Set window size constraints to match tab + content widths (flush, no extra spacing)
+            float tabWidth = 220f;
+            float contentWidth = 600f;
+            float totalWidth = tabWidth + contentWidth; // Removed ItemSpacing.X for flush layout
+            float totalHeight = 600f;
+
+            SizeConstraints = new WindowSizeConstraints
+            {
+                MinimumSize = new Vector2(totalWidth, totalHeight),
+                MaximumSize = new Vector2(totalWidth, 600)
+            };
+
+            ImGui.SetNextWindowSize(new Vector2(totalWidth, totalHeight), ImGuiCond.FirstUseEver);
+
+            // Begin horizontal layout: left = tabs, right = content
+            ImGui.BeginChild("##ZoneLevelGuideMain", new Vector2(0, 0), false);
+
+            ImGui.Columns(2, "ZoneLevelGuideColumns", true);
+
+            // --- Left: Vertical Tabs ---
+            ImGui.BeginChild("##ZoneTabs", new Vector2(tabWidth, 0), true);
+            int prevTab = selectedTab;
+            for (int i = 0; i < tabInfo.Length; i++)
+            {
+                // Use ImGui.Selectable for vertical tab effect
+                bool selected = (selectedTab == i);
+                if (ImGui.Selectable($"{tabInfo[i].name} {tabInfo[i].levels}", selected, ImGuiSelectableFlags.None, new Vector2(0, 0)))
+                {
+                    selectedTab = i;
+                }
+            }
+            ImGui.EndChild();
+
+            ImGui.NextColumn();
+
+            // --- Right: Content ---
+            ImGui.BeginChild("##ZoneTabContent", new Vector2(contentWidth, 0), true);
+
+            ImGui.Spacing();
             ImGui.Separator();
 
-            // Display content based on selected tab
             switch (selectedTab)
             {
-                case 0: // Gridania
-                    DrawGridaniaContent();
-                    break;
-                case 1: // Limsa Lominsa
-                    DrawLimsaContent();
-                    break;
-                case 2: // Ul'dah
-                    DrawUldahContent();
-                    break;
-                case 3: // Ishgard
-                    DrawIshgardContent();
-                    break;
-                case 4: // Far East
-                    DrawFarEastContent();
-                    break;
-                case 5: // Norvrandt
-                    DrawNorvrandtContent();
-                    break;
-                case 6: // Ilsabard
-                    DrawIlsabardContent();
-                    break;
-                case 7: // Dawntrail
-                    DrawDawntrailContent();
-                    break;
+                case 0: DrawGridaniaContent(); break;
+                case 1: DrawLimsaContent(); break;
+                case 2: DrawUldahContent(); break;
+                case 3: DrawMorDhonaContent(); break;
+                case 4: DrawCoerthasContent(); break;
+                case 5: DrawIshgardContent(); break;
+                case 6: DrawFarEastContent(); break;
+                case 7: DrawNorvrandtContent(); break;
+                case 8: DrawIlsabardContent(); break;
+                case 9: DrawDawntrailContent(); break;
             }
 
             ImGui.Spacing();
+            ImGui.EndChild();
+
+            ImGui.Columns(1);
+            ImGui.EndChild();
+
+            ImGui.PopStyleColor(); // Pop WindowBg
+        }
+
+        private void DrawTeleportButton(string locationName, uint aetheryteId)
+        {
+            if (teleporter != null)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.28f, 0.38f, 1.0f));         // Very dark blue-gray
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.18f, 0.23f, 0.32f, 1.0f));   // Even darker on hover
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.19f, 0.27f, 1.0f));    // Even darker when pressed
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1.0f));                     // White text
+
+                bool pressed = ImGui.Button($"{locationName}###tp_{aetheryteId}");
+
+                ImGui.PopStyleColor(4);
+
+                if (pressed)
+                {
+                    try
+                    {
+                        teleporter.Teleport(aetheryteId);
+                    }
+                    catch (System.Exception)
+                    {
+                        // Silently fail if teleport is not available
+                    }
+                }
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1.0f), $"{locationName}");
+            }
+        }
+
+        private void DrawDiscoveryButton()
+        {
+            // Commented out debug tools for production
+            /*
+            if (teleporter != null)
+            {
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Debug Tools:");
+                
+                var teleporterService = teleporter as TeleporterService;
+                if (teleporterService != null)
+                {
+                    ImGui.Text($"Current Test ID: {teleporterService.currentTestId}");
+                    
+                    if (ImGui.Button("🔍 Test Next Aetheryte ID"))
+                    {
+                        try
+                        {
+                            teleporterService.TestSingleAetheryteId(teleporterService.currentTestId);
+                        }
+                        catch (System.Exception)
+                        {
+                            // Silently fail
+                        }
+                    }
+                    ImGui.SameLine();
+                    
+                    if (ImGui.Button("🔄 Reset"))
+                    {
+                        try
+                        {
+                            teleporterService.ResetDiscovery();
+                        }
+                        catch (System.Exception)
+                        {
+                            // Silently fail
+                        }
+                    }
+                    
+                    ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "Note where you teleport and the ID!");
+                }
+            }
+            */
         }
 
         private void DrawGridaniaContent()
@@ -102,7 +207,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "1-15");
             ImGui.Text("Starting Area for Conjurers, Archers, and Lancers");
-            ImGui.Text("Notable locations: Carline Canopy, Lancers' Guild, Archers' Guild");
+            DrawTeleportButton("New Gridania", 2);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -111,7 +216,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "5-15");
-            ImGui.Text("Notable locations: Bentbranch Meadows, Guardian Tree, Jadeite Thick");
+            DrawTeleportButton("Bentbranch Meadows", 3);  // Fixed: use actual ID 3
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -120,7 +225,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "15-25");
-            ImGui.Text("Notable locations: Hawthorne Hut, The Honey Yard, Nine Ivies");
+            DrawTeleportButton("Hawthorne Hut", 4);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -129,7 +234,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "20-30");
-            ImGui.Text("Notable locations: Quarrymill, Camp Tranquil, Buscarron's Druthers");
+            DrawTeleportButton("Quarrymill", 5);      // Fixed: use actual ID 5
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -138,7 +243,11 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "15-30");
-            ImGui.Text("Notable locations: Fallgourd Float, Spirithold, Gelmorra Ruins");
+            DrawTeleportButton("Camp Tranquil", 6);       // Added Camp Tranquil
+            DrawTeleportButton("Fallgourd Float", 7);    // Fixed: use actual ID 7
+            
+            // Add discovery button at the end
+            // DrawDiscoveryButton(); // Commented out for production
         }
 
         private void DrawLimsaContent()
@@ -157,7 +266,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "1-15");
             ImGui.Text("Starting Area for Marauders, Arcanists, and Rogues");
-            ImGui.Text("Notable locations: Drowning Wench, Arcanists' Guild, Coral Tower");
+            DrawTeleportButton("Limsa Lominsa Lower Decks", 8);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -167,6 +276,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "5-15");
             ImGui.Text("Notable locations: Summerford Farms, Seasong Grotto, Three-malm Bend");
+            DrawTeleportButton("Summerford Farms", 9);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -176,6 +286,8 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "10-20");
             ImGui.Text("Notable locations: Moraby Drydocks, Cedarwood, Aleport");
+            DrawTeleportButton("Moraby Drydocks", 10);
+            DrawTeleportButton("Aleport", 14);       // Added: use actual ID 14
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -184,7 +296,8 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "15-30");
-            ImGui.Text("Notable locations: Swiftperch, Skull Valley, Halfstone");
+            ImGui.Text("Notable locations: Wineport, Skull Valley, Halfstone");
+            DrawTeleportButton("Swiftperch", 13);     // Fixed: use actual ID 13
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -194,6 +307,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "30-35");
             ImGui.Text("Notable locations: Costa del Sol, Bloodshore, Hidden Falls");
+            DrawTeleportButton("Costa del Sol", 11);     // Fixed: use actual ID 11
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -203,6 +317,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "30-35");
             ImGui.Text("Notable locations: Camp Bronze Lake, Bronze Lake, Quarterstone");
+            DrawTeleportButton("Camp Bronze Lake", 15);   // Fixed: use actual ID 15
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -212,6 +327,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "40-50");
             ImGui.Text("Notable locations: Camp Overlook, U'Ghamaro Mines, Thalaos");
+            DrawTeleportButton("Camp Overlook", 16);   // Fixed: use actual ID 16
         }
 
         private void DrawUldahContent()
@@ -230,7 +346,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "1-15");
             ImGui.Text("Starting Area for Gladiators, Pugilists, and Thaumaturges");
-            ImGui.Text("Notable locations: Quicksand, Pugilists' Guild, Gladiators' Guild");
+            DrawTeleportButton("Ul'dah - Steps of Nald", 9);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -240,6 +356,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "5-15");
             ImGui.Text("Notable locations: Horizon, Scorpion Crossing, Footprint");
+            DrawTeleportButton("Horizon", 17);        // Fixed: use actual ID 17
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -249,6 +366,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "15-20");
             ImGui.Text("Notable locations: Black Brush Station, Spineless Basin, Cactuar Cut");
+            DrawTeleportButton("Black Brush Station", 21);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -258,6 +376,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "20-25");
             ImGui.Text("Notable locations: Camp Drybone, The Burning Wall, Sandgate");
+            DrawTeleportButton("Camp Drybone", 18);      // Fixed: use actual ID 18
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -267,6 +386,8 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "35-40");
             ImGui.Text("Notable locations: Little Ala Mhigo, Forgotten Springs, Byregot's Strike");
+            DrawTeleportButton("Little Ala Mhigo", 19);
+            DrawTeleportButton("Forgotten Springs", 20);  // Added: use actual ID 20
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -276,12 +397,65 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "45-50");
             ImGui.Text("Notable locations: Bluefog, Ceruleum Processing Plant, Camp Bluefog");
+            DrawTeleportButton("Camp Bluefog", 21);      // Fixed: use actual ID 21
+            
+            // Add discovery button at the end
+            // DrawDiscoveryButton(); // Commented out for production
+        }
+
+        private void DrawCoerthasContent()
+        {
+            ImGui.SetWindowFontScale(1.5f);
+            ImGui.Text("Coerthas - Pre-Calamity Regions ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "(35-53)");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.Separator();
+            
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), "Coerthas Central Highlands:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "35-45");
+            ImGui.Text("Mountainous region south of Ishgard");
+            DrawTeleportButton("Camp Dragonhead", 23);
+            
+            ImGui.Spacing();
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), "Coerthas Western Highlands:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "50-53");
+            ImGui.Text("Frozen wastes west of Ishgard");
+            DrawTeleportButton("Falcon's Nest", 74);
+        }
+
+        private void DrawMorDhonaContent()
+        {
+            ImGui.SetWindowFontScale(1.5f);
+            ImGui.Text("Mor Dhona ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "(45-50)");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.Separator();
+            
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.7f, 0.5f, 0.9f, 1.0f), "Mor Dhona:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "45-50");
+            ImGui.Text("Gateway to Heavensward content and endgame hub");
+            ImGui.Text("Notable locations: Revenant's Toll, The Rising Stones, Crystal Tower");
+            DrawTeleportButton("Revenant's Toll", 24);
         }
 
         private void DrawIshgardContent()
         {
             ImGui.SetWindowFontScale(1.5f);
-            ImGui.Text("Ishgard and Coerthas/Dravania - Heavensward ");
+            ImGui.Text("Ishgard and Dravania - Heavensward ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "(50-60)");
             ImGui.SetWindowFontScale(1.0f);
@@ -294,27 +468,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "50-60");
             ImGui.Text("City of Ishgard - Heavensward starting area");
-            ImGui.Text("Notable locations: The Forgotten Knight, Saint Reymanaud Cathedral");
-            
-            ImGui.Spacing();
-            ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.7f, 1.0f), "Coerthas Central Highlands:");
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "35-45");
-            ImGui.Text("Mountainous region south of Ishgard");
-            ImGui.Text("Notable locations: Camp Dragonhead, Whitebrim Front, Observatorium");
-            
-            ImGui.Spacing();
-            ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.7f, 1.0f), "Coerthas Western Highlands:");
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "50-53");
-            ImGui.Text("Frozen wastes west of Ishgard");
-            ImGui.Text("Notable locations: Falcon's Nest, Riversmeet, Gorgagne Holding");
+            DrawTeleportButton("Foundation", 70);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -324,7 +478,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "51-54");
             ImGui.Text("Series of floating islands in the sky");
-            ImGui.Text("Notable locations: Camp Cloudtop, Voor Sian Siran, The Blue Window");
+            DrawTeleportButton("Camp Cloudtop", 72);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -334,7 +488,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "54-56");
             ImGui.Text("Ancient home of the dragons");
-            ImGui.Text("Notable locations: Moghome, Zenith, Tharl Oom Khash");
+            DrawTeleportButton("Moghome", 71);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -344,7 +498,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "52-54");
             ImGui.Text("Vast wilderness of Dravania");
-            ImGui.Text("Notable locations: Tailfeather, Anyx Trine, Whilom River");
+            DrawTeleportButton("Tailfeather", 75);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -354,7 +508,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "56-60");
             ImGui.Text("Site of the abandoned city of Sharlayan");
-            ImGui.Text("Notable locations: Idyllshire, Great Gubal Library, Matoya's Cave");
+            DrawTeleportButton("Idyllshire", 73);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -364,7 +518,10 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "58-60");
             ImGui.Text("Ancient Allagan research facility");
-            ImGui.Text("Notable locations: Helix, Gamma Quadrant, Flagship");
+            DrawTeleportButton("Helix", 76);
+            
+            // Add discovery button at the end
+            // DrawDiscoveryButton(); // Commented out for production
         }
 
         private void DrawFarEastContent()
@@ -383,7 +540,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "60-70");
             ImGui.Text("Main city hub for Stormblood");
-            ImGui.Text("Notable locations: Shiokaze Hostelry, Markets, Bokairo Inn");
+            DrawTeleportButton("Kugane", 111);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -392,7 +549,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "61-63");
-            ImGui.Text("Notable locations: Tamamizu, The One River, Isari");
+            DrawTeleportButton("Tamamizu", 112);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -401,7 +558,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "64-65");
-            ImGui.Text("Notable locations: Namai, The House of the Fierce, Doma Castle");
+            DrawTeleportButton("Namai", 114);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -410,7 +567,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "65-67");
-            ImGui.Text("Notable locations: Reunion, The Dawn Throne, Mol Iloh");
+            DrawTeleportButton("Reunion", 115);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -419,7 +576,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "60-62");
-            ImGui.Text("Notable locations: Castrum Oriens, The Peering Stones, Rhalgr's Reach");
+            DrawTeleportButton("Rhalgr's Reach", 109);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -428,7 +585,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "63-64");
-            ImGui.Text("Notable locations: Ala Gannha, Specula Imperatoris, The Ziggurat");
+            DrawTeleportButton("Ala Gannha", 110);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -437,7 +594,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "67-70");
-            ImGui.Text("Notable locations: Ala Mhigo, The Saltery, Porta Praetoria");
+            DrawTeleportButton("The Ala Mhigan Quarter", 113);
         }
 
         private void DrawNorvrandtContent()
@@ -456,7 +613,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-80");
             ImGui.Text("Main city hub for Shadowbringers");
-            ImGui.Text("Notable locations: Musica Universalis, The Wandering Stairs");
+            DrawTeleportButton("The Crystarium", 131);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -466,7 +623,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-80");
             ImGui.Text("Secondary city hub");
-            ImGui.Text("Notable locations: The Canopy, The Buttress, The Derelicts");
+            DrawTeleportButton("Eulmore", 134);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -476,6 +633,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-72");
             ImGui.Text("Notable locations: Fort Jobb, The Ostall Imperative, The Source");
+            DrawTeleportButton("Fort Jobb", 132);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -485,6 +643,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-72");
             ImGui.Text("Notable locations: Stilltide, Wright, Tomra");
+            DrawTeleportButton("Stilltide", 133);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -494,6 +653,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "75-77");
             ImGui.Text("Notable locations: Mord Souq, The Inn at Journey's Head, Twine");
+            DrawTeleportButton("Mord Souq", 137);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -503,6 +663,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "73-75");
             ImGui.Text("Notable locations: Lydha Lran, Pla Enni, Wolekdorf");
+            DrawTeleportButton("Lydha Lran", 135);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -512,6 +673,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "74-76");
             ImGui.Text("Notable locations: Slitherbough, Fanow, The Ox'Dalan Gap");
+            DrawTeleportButton("Slitherbough", 136);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -521,6 +683,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "78-80");
             ImGui.Text("Notable locations: The Ondo Cups, Macarenses Angle, The Amaurotine Relic");
+            DrawTeleportButton("The Ondo Cups", 138);
         }
 
         private void DrawIlsabardContent()
@@ -539,7 +702,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "80-90");
             ImGui.Text("Main city hub for Endwalker");
-            ImGui.Text("Notable locations: Baldesion Annex, The Studium, The Last Stand");
+            DrawTeleportButton("Old Sharlayan", 170);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -549,6 +712,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "81-83");
             ImGui.Text("Notable locations: The Archeion, Sharlayan Hamlet, The Twelve Wonders");
+            DrawTeleportButton("The Archeion", 172);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -558,6 +722,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "80-82");
             ImGui.Text("Notable locations: Radz-at-Han, The Great Work, Palaka's Stand");
+            DrawTeleportButton("Yedlihmad", 173);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -567,6 +732,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "83-85");
             ImGui.Text("Notable locations: Tertium, Camp Broken Glass, The Eblan Rime");
+            DrawTeleportButton("Tertium", 174);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -576,6 +742,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "85-87");
             ImGui.Text("Notable locations: Bestways Burrow, Salthrack, The Seat of Sacrifice");
+            DrawTeleportButton("Bestways Burrow", 175);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -585,6 +752,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "88-90");
             ImGui.Text("Notable locations: Base Omicron, The Dead Ends, The Mourning Star");
+            DrawTeleportButton("Base Omicron", 177);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -594,6 +762,7 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "86-88");
             ImGui.Text("Notable locations: Anagnorisis, Poieten Oikos, The Vitrified Fort");
+            DrawTeleportButton("Anagnorisis", 176);
         }
 
         private void DrawDawntrailContent()
@@ -612,17 +781,26 @@ namespace ZoneLevels
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "90-91");
             ImGui.Text("Main city hub for Dawntrail");
-            ImGui.Text("Notable locations: The Mamook Markets, Tuliyollal Gardens");
+            DrawTeleportButton("Tuliyollal", 180);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Solution:");
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Solution Nine:");
             ImGui.SetWindowFontScale(1.0f);
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "97-100");
             ImGui.Text("Second major city for Dawntrail");
-            ImGui.Text("Notable locations: The Circular Forum, The Misted Hall");
+            DrawTeleportButton("Solution Nine", 185);
+            
+            ImGui.Spacing();
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Urqopacha:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "90-92");
+            DrawTeleportButton("Wachunpelo", 181);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -631,25 +809,7 @@ namespace ZoneLevels
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "94-96");
-            ImGui.Text("Notable locations: The Burning Peaks, Ardorous Lake");
-            
-            ImGui.Spacing();
-            ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Heritage Found:");
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "90-92");
-            ImGui.Text("Notable locations: Urqopacha, The Singing Trees");
-            
-            ImGui.Spacing();
-            ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Shaaloani:");
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "92-94");
-            ImGui.Text("Notable locations: The Lost City, The Mystic Jungle");
+            DrawTeleportButton("Ok'hanu", 182);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -657,27 +817,51 @@ namespace ZoneLevels
             ImGui.SetWindowFontScale(1.0f);
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "91-93");
-            ImGui.Text("Notable locations: Mount T'el, The Golden River");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "92-94");
+            DrawTeleportButton("Iq Br'aax", 183);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "The Bluescent Deep:");
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Shaaloani:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "93-95");
+            DrawTeleportButton("Hhusatahwi", 184);
+            
+            ImGui.Spacing();
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Heritage Found:");
             ImGui.SetWindowFontScale(1.0f);
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "96-98");
-            ImGui.Text("Notable locations: The Seafloor Ruins, The Coral Gardens");
+            DrawTeleportButton("Electrope Strike", 186);
             
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "The Sundered Canopy:");
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), "Living Memory:");
             ImGui.SetWindowFontScale(1.0f);
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "99-100");
-            ImGui.Text("End-game zone for Dawntrail");
-            ImGui.Text("Notable locations: The Golden Temple, The Celestial Gates");
+            DrawTeleportButton("Leynode Mnemo", 187);
+        }
+
+        private void DrawZoneSection(Action drawContent)
+        {
+            ImGui.Dummy(new Vector2(0, 6));
+            // Use a slightly lighter dark gray for section backgrounds
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.20f, 0.22f, 0.25f, 0.85f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.25f, 0.45f, 0.75f, 0.5f));
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.5f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 7));
+            ImGui.BeginChild(Guid.NewGuid().ToString(), new Vector2(0, 0), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+            drawContent();
+            ImGui.EndChild();
+            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(2);
+            ImGui.Separator(); // Add a line between each section for readability
         }
     }
 }

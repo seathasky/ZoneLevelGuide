@@ -2,6 +2,7 @@ using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
+using Dalamud.Game;
 using System;
 
 namespace ZoneLevelGuide
@@ -14,17 +15,28 @@ namespace ZoneLevelGuide
         private readonly WindowSystem windowSystem;
         private readonly ZoneLevelWindow zoneLevelWindow;
         private readonly IDalamudPluginInterface pluginInterface;
+        private readonly TeleporterService teleporterService;
 
         public PluginMain(
             IDalamudPluginInterface pluginInterface,
-            ICommandManager commandManager)
+            ICommandManager commandManager,
+            IGameGui gameGui,
+            IChatGui chatGui,
+            IClientState clientState,
+            ICondition condition,
+            ISigScanner sigScanner,
+            IGameInteropProvider gameInterop,
+            ITextureProvider textureProvider)
         {
             this.pluginInterface = pluginInterface;
             this.commandManager = commandManager;
 
+            // Create teleporter service with command manager for /tp commands
+            this.teleporterService = new TeleporterService(pluginInterface, chatGui, commandManager, sigScanner, gameInterop);
+
             // Set up window system
             windowSystem = new WindowSystem("ZoneLevelGuide");
-            zoneLevelWindow = new ZoneLevelWindow();
+            zoneLevelWindow = new ZoneLevelWindow(this.teleporterService);
             windowSystem.AddWindow(zoneLevelWindow);
 
             // Register UI events
