@@ -1,6 +1,6 @@
 # Zone Level Guide
 
-![Zone Level Guide](https://github.com/seathasky/ZoneLevelGuide/blob/034621154c09e5b313c8b3548271ae86900f0f6c/Images/ZL.png?raw=true)
+![Zone Level Guide](https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/refs/heads/main/Images/ZL2.png)
 
 A Dalamud plugin that displays level ranges for all zones in FFXIV.
 
