@@ -3,7 +3,6 @@
 ![Zone Level Guide](https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/refs/heads/main/Images/ZL4.png)
 
 A Dalamud plugin that displays level ranges for all zones in FFXIV.<br>
-Comes w/ optional Teleport buttons. Requires Teleporter plugin: https://github.com/pohky/TeleporterPlugin
 
 ## Installation
 
@@ -26,3 +25,4 @@ https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/main/repo.json
 - Shows level ranges for all zones from ARR to Dawntrail
 - Organized by expansion
 - Color coded for easy reading
+- Teleport buttons. Requires Teleporter plugin: https://github.com/pohky/TeleporterPlugin
