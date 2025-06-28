@@ -2,7 +2,7 @@
 <Project Sdk="Dalamud.NET.Sdk/12.0.2">
   <PropertyGroup>
     <Authors>Seathasky</Authors>
-    <Version>1.0.0.3</Version>
+    <Version>1.0.0.4</Version>
     <Description>Shows level ranges for all zones in FFXIV</Description>
     <PackageProjectUrl>https://github.com/Seathasky/ZoneLevelGuide</PackageProjectUrl>
   </PropertyGroup>

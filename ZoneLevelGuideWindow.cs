@@ -25,7 +25,7 @@ namespace ZoneLevelGuide
             ("Far East", "60-70"),
             ("Norvrandt", "70-80"),
             ("Ilsabard", "80-90"),
-            ("Tural & Solution", "90-100")
+            ("Tural", "90-100")
         };
 
         public ZoneLevelWindow(ITeleporterIpc? teleporter = null) : base(
@@ -549,7 +549,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-80");
             ImGui.Text("Main city hub for Shadowbringers");
-            DrawTeleportButton("The Crystarium", 134);
+            DrawTeleportButton("The Crystarium", 133);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -559,7 +559,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-80");
             ImGui.Text("Secondary city hub");
-            DrawTeleportButton("Eulmore", 135);
+            DrawTeleportButton("Eulmore", 134);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -569,7 +569,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "70-72");
             ImGui.Text("Notable locations: Fort Jobb, The Ostall Imperative, The Source");
-            DrawTeleportButton("Fort Jobb", 133);
+            DrawTeleportButton("Fort Jobb", 132);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -715,14 +715,25 @@ namespace ZoneLevelGuide
             ImGui.SetWindowFontScale(1.0f);
             ImGui.Separator();
 
+            // Radz-at-Han (main city, first)
+            ImGui.SetWindowFontScale(1.2f);
+            ImGui.TextColored(new Vector4(0.3f, 0.7f, 0.7f, 1.0f), "Radz-at-Han:");
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "80-90");
+            ImGui.Text("City hub for Endwalker");
+            DrawTeleportButton("Radz-at-Han", 183);
+
+            ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
             ImGui.TextColored(new Vector4(0.3f, 0.7f, 0.7f, 1.0f), "Old Sharlayan:");
             ImGui.SetWindowFontScale(1.0f);
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "80-90");
-            ImGui.Text("Main city hub for Endwalker");
-            DrawTeleportButton("Old Sharlayan", 181);
+            ImGui.Text("City hub for Endwalker");
+            DrawTeleportButton("Old Sharlayan", 182);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -732,7 +743,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "81-83");
             ImGui.Text("Notable locations: The Archeion, Sharlayan Hamlet, The Twelve Wonders");
-            DrawTeleportButton("The Archeion", 165);
+            DrawTeleportButton("The Archeion", 166);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -741,8 +752,8 @@ namespace ZoneLevelGuide
             ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Level Range: ");
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "80-82");
-            ImGui.Text("Notable locations: Radz-at-Han, The Great Work, Palaka's Stand");
-            DrawTeleportButton("Yedlihmad", 168);
+            ImGui.Text("Notable locations: Yedlihmad, The Great Work, Palaka's Stand");
+            DrawTeleportButton("Yedlihmad", 169);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -752,7 +763,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "83-85");
             ImGui.Text("Notable locations: Tertium, Camp Broken Glass, The Eblan Rime");
-            DrawTeleportButton("Tertium", 172);
+            DrawTeleportButton("Tertium", 173);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -762,7 +773,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "85-87");
             ImGui.Text("Notable locations: Bestways Burrow, Salthrack, The Seat of Sacrifice");
-            DrawTeleportButton("Bestways Burrow", 174);
+            DrawTeleportButton("Bestways Burrow", 175);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -772,7 +783,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "88-90");
             ImGui.Text("Notable locations: Base Omicron, The Dead Ends, The Mourning Star");
-            DrawTeleportButton("Base Omicron", 180);
+            DrawTeleportButton("Base Omicron", 181);
 
             ImGui.Spacing();
             ImGui.SetWindowFontScale(1.2f);
@@ -782,7 +793,7 @@ namespace ZoneLevelGuide
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1.0f), "86-88");
             ImGui.Text("Notable locations: Anagnorisis, Poieten Oikos, The Vitrified Fort");
-            DrawTeleportButton("Anagnorisis", 175);
+            DrawTeleportButton("Anagnorisis", 176);
         }
 
         private void DrawZoneSection(Action drawContent)
