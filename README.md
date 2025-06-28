@@ -19,8 +19,7 @@ https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/main/repo.json
 
 ### Commands
 ```
-/zoneguide - Open the zone level window
-/zg - Alternative command
+/zg - Open the zone level window
 ```
 
 ## Features
