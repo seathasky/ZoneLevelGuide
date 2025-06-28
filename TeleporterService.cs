@@ -3,6 +3,7 @@ using Dalamud.Plugin.Services;
 using Dalamud.Game;
 using System;
 using System.Collections.Generic;
+using Dalamud.Logging;
 
 namespace ZoneLevelGuide
 {
@@ -11,87 +12,127 @@ namespace ZoneLevelGuide
         void Teleport(uint aetheryteId);
     }
 
-    public class TeleporterService : ITeleporterIpc
+    public partial class TeleporterService : ITeleporterIpc
     {
         private readonly IChatGui chatGui;
         private readonly IDalamudPluginInterface pluginInterface;
         private DateTime lastTeleport = DateTime.MinValue;
         private Dalamud.Plugin.Ipc.ICallGateSubscriber<uint, byte, bool>? teleportSubscriber;
 
-        // Display names with aetheryte IDs annoyingly debugged
+        // I hated doing this, did all these fucking manually
         private readonly Dictionary<uint, string> aetheryteDisplayNames = new()
         {
-            // === A Realm Reborn (ARR) Aetherytes - IDs 2-24 ===
             { 2, "New Gridania" },
-            { 3, "Bentbranch Meadows" },  // Fixed: use actual ID 3
-            { 4, "Hawthorne Hut" },       // Fixed: use actual ID 4
-            { 5, "Quarrymill" },          // Fixed: use actual ID 5
-            { 6, "Camp Tranquil" },       // Fixed: use actual ID 6
-            { 7, "Fallgourd Float" },     // Fixed: use actual ID 7
+            { 3, "Bentbranch Meadows" },
+            { 4, "The Hawthorne Hut" },
+            { 5, "Quarrymill" },
+            { 6, "Camp Tranquil" },
+            { 7, "Fallgourd Float" },
             { 8, "Limsa Lominsa Lower Decks" },
             { 9, "Ul'dah - Steps of Nald" },
             { 10, "Moraby Drydocks" },
-            { 11, "Costa del Sol" },      // Fixed: use actual ID 11
-            { 12, "Wineport" },           // Fixed: use actual ID 12 for Wineport
-            { 13, "Swiftperch" },         // Fixed: use actual ID 13 for Swiftperch
-            { 14, "Aleport" },            // Fixed: use actual ID 14 for Aleport
-            { 15, "Camp Bronze Lake" },   // Fixed: use actual ID 15 for Camp Bronze Lake
-            { 16, "Camp Overlook" },      // Fixed: use actual ID 16 for Camp Overlook
-            { 17, "Horizon" },            // Fixed: use actual ID 17 for Horizon
-            { 18, "Camp Drybone" },       // Fixed: use actual ID 18 for Camp Drybone
-            { 19, "Little Ala Mhigo" },   // Fixed: use actual ID 19 for Little Ala Mhigo
-            { 20, "Forgotten Springs" },  // Fixed: use actual ID 20 for Forgotten Springs
-            { 21, "Camp Bluefog" },       // Fixed: use actual ID 21 for Camp Bluefog
-            { 22, "Ceruleum Processing Plant" }, // Fixed: use actual ID 22 for Ceruleum Processing Plant
-            { 23, "Camp Dragonhead" },    // Fixed: use actual ID 23 for Camp Dragonhead
-            { 24, "Revenant's Toll" },    // Fixed: use actual ID 24 for Revenant's Toll
-            
-            // === Heavensward Aetherytes - IDs 70-76 ===
+            { 11, "Costa del Sol" },
+            { 12, "Wineport" },
+            { 13, "Swiftperch" },
+            { 14, "Aleport" },
+            { 15, "Camp Bronze Lake" },
+            { 16, "Camp Overlook" },
+            { 17, "Horizon" },
+            { 18, "Camp Drybone" },
+            { 19, "Little Ala Mhigo" },
+            { 20, "Forgotten Springs" },
+            { 21, "Camp Bluefog" },
+            { 22, "Ceruleum Processing Plant" },
+            { 23, "Camp Dragonhead" },
+            { 24, "Revenant's Toll" },
+            { 52, "Summerford Farms" },
+            { 53, "Black Brush Station" },
+            { 54, "Wolves' Den Pier" },
+            { 61, "The Gold Saucer" },
             { 70, "Foundation" },
-            { 71, "Moghome" },
+            { 71, "Falcon's Nest" },
             { 72, "Camp Cloudtop" },
-            { 73, "Idyllshire" },
-            { 74, "Falcon's Nest" },
-            { 75, "Tailfeather" },
-            { 76, "Helix" },
-            
-            // === Stormblood Aetherytes - IDs 109-115 ===
-            { 109, "Rhalgr's Reach" },
-            { 110, "Ala Gannha" },
+            { 73, "Ok' Zundu" },
+            { 74, "Helix" },
+            { 75, "Idyllshire" },
+            { 76, "Tailfeather" },
+            { 77, "Anyx Trine" },
+            { 78, "Moghome" },
+            { 79, "Zenith" },
+            { 96, "Estate Hall (Free Company)" },
+            { 97, "Estate Hall (Private)" },
+            { 98, "Castrum Oriens" },
+            { 99, "The Peering Stones" },
+            { 100, "Ala Gannha" },
+            { 101, "Ala Ghiri" },
+            { 102, "Porta Praetoria" },
+            { 103, "The Ala Mhigan Quarter" },
+            { 104, "Rhalgr's Reach" },
+            { 105, "Tamamizu" },
+            { 106, "Onokoro" },
+            { 107, "Namai" },
+            { 108, "The House of the Fierce" },
+            { 109, "Reunion" },
+            { 110, "The Dawn Throne" },
             { 111, "Kugane" },
-            { 112, "Tamamizu" },
-            { 113, "The Ala Mhigan Quarter" },
-            { 114, "Namai" },
-            { 115, "Reunion" },
-            
-            // === Shadowbringers Aetherytes - IDs 131-138 ===
-            { 131, "The Crystarium" },
-            { 132, "Fort Jobb" },
-            { 133, "Stilltide" },
-            { 134, "Eulmore" },
-            { 135, "Lydha Lran" },
-            { 136, "Slitherbough" },
-            { 137, "Mord Souq" },
-            { 138, "The Ondo Cups" },
-            
-            // === Endwalker Aetherytes - IDs 170-177 ===
-            { 170, "Old Sharlayan" },
-            { 172, "The Archeion" },
-            { 173, "Yedlihmad" },
-            { 174, "Tertium" },
-            { 175, "Bestways Burrow" },
-            { 176, "Anagnorisis" },
-            { 177, "Base Omicron" },
-            
-            // === Dawntrail Aetherytes - IDs 180-187 ===
-            { 180, "Tuliyollal" },
-            { 181, "Wachunpelo" },
-            { 182, "Ok'hanu" },
-            { 183, "Iq Br'aax" },
-            { 184, "Hhusatahwi" },
-            { 185, "Solution Nine" },
-            { 186, "Electrope Strike" },
-            { 187, "Leynode Mnemo" }
+            { 127, "The Doman Enclave" },
+            { 128, "Dhoro Iloh" },
+            { 133, "Fort Jobb" },
+            { 134, "The Crystarium" },
+            { 135, "Eulmore" },
+            { 136, "The Ostall Imperative" },
+            { 137, "Stilltide" },
+            { 138, "Wright" },
+            { 139, "Tomra" },
+            { 140, "Mord Souq" },
+            { 141, "Twine" },
+            { 142, "Slitherbough" },
+            { 143, "Fanow" },
+            { 144, "Lydha Lran" },
+            { 145, "Pla Enni" },
+            { 146, "Wolekdorf" },
+            { 147, "The Ondo Cups" },
+            { 148, "The Macareneses Angle" },
+            { 161, "The Inn at Journey's Head" },
+            { 163, "Estate Hall (Free Company)" },
+            { 164, "Estate Hall (Private)" },
+            { 165, "The Archeion" },
+            { 166, "Sharlayan Hamlet" },
+            { 167, "Aporia" },
+            { 168, "Yedlihmad" },
+            { 169, "The Great Work" },
+            { 170, "Palaka's Stand" },
+            { 171, "Camp Broken Glass" },
+            { 172, "Tertium" },
+            { 173, "Sinus Lacrimarum" },
+            { 174, "Bestways Burrow" },
+            { 175, "Anagnorisis" },
+            { 176, "The Twelve Wonders" },
+            { 177, "Poieten Oikos" },
+            { 178, "Reah Tahra" },
+            { 179, "Abode of the Ea" },
+            { 180, "Base Omicron" },
+            { 181, "Old Sharlayan" },
+            { 182, "Radz-at-Han" },
+            { 200, "Wachunpelo" },
+            { 201, "Worlar's Echo" },
+            { 202, "Ok'hanu" },
+            { 203, "Many Fires" },
+            { 204, "Earthenshire" },
+            { 205, "Iq Br'aax" },
+            { 206, "Mamook" },
+            { 207, "Hhusatahwi" },
+            { 208, "Sheshenewezi Springs" },
+            { 209, "Mehwahhetsoan" },
+            { 210, "Yyasulani Station" },
+            { 211, "The Outskirts" },
+            { 212, "Electrope Strike" },
+            { 213, "Leynode Mnemo" },
+            { 214, "Leynode Pyro" },
+            { 215, "Leynode Aero" },
+            { 216, "Tuliyollal" },
+            { 217, "Solution Nine" },
+            { 238, "Dock Poga" }
         };
 
         public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, ISigScanner sigScanner, IGameInteropProvider gameInterop)
@@ -174,74 +215,5 @@ namespace ZoneLevelGuide
                 return false;
             }
         }
-
-        public void TestTeleport()
-        {
-            // Commented out for production
-            /*
-            // Test teleport to Limsa Lominsa Lower Decks (ID: 8)
-            chatGui?.Print("Testing teleport to Limsa Lominsa Lower Decks...");
-            Teleport(8);
-            */
-        }
-
-        // Commented out debug methods for production
-        /*
-        // Add this method to help discover correct aetheryte IDs
-        public void DiscoverAetheryteIds()
-        {
-            chatGui?.Print("=== Aetheryte ID Discovery ===");
-            chatGui?.Print("This will test one ID at a time. Use '/zg' to open window and test next ID.");
-            chatGui?.Print("Testing ID 1...");
-            
-            // Test just one ID at a time to avoid crashes
-            TestSingleAetheryteId(1);
-        }
-
-        public uint currentTestId = 1;
-        
-        public void TestSingleAetheryteId(uint id)
-        {
-            try
-            {
-                if (teleportSubscriber != null)
-                {
-                    chatGui?.Print($"Testing ID {id}...");
-                    var result = teleportSubscriber.InvokeFunc(id, 0);
-                    if (result)
-                    {
-                        chatGui?.Print($"SUCCESS: ID {id} worked! Check where you teleported.");
-                        chatGui?.Print($"Please note down: ID {id} = [Location Name]");
-                    }
-                    else
-                    {
-                        chatGui?.Print($"ID {id} failed - no teleport occurred.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                chatGui?.Print($"ID {id} failed: {ex.Message}");
-            }
-            
-            currentTestId = id + 1;
-            if (currentTestId <= 30)
-            {
-                chatGui?.Print($"Next test will be ID {currentTestId}. Click discovery button again to continue.");
-            }
-            else
-            {
-                chatGui?.Print("=== Discovery Complete ===");
-                chatGui?.Print("Please share your findings so we can update the mappings!");
-                currentTestId = 1; // Reset for next time
-            }
-        }
-
-        public void ResetDiscovery()
-        {
-            currentTestId = 1;
-            chatGui?.Print("Discovery reset. Starting from ID 1 again.");
-        }
-        */
     }
 }
