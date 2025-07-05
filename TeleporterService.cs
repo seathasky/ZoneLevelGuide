@@ -19,10 +19,13 @@ namespace ZoneLevelGuide
     {
         private readonly IChatGui chatGui;
         private readonly IDalamudPluginInterface pluginInterface;
+        private readonly ICommandManager commandManager;
         private DateTime lastTeleport = DateTime.MinValue;
         private Dalamud.Plugin.Ipc.ICallGateSubscriber<uint, byte, bool>? teleportSubscriber;
+        private IClientState? clientState;
+        private bool isAutoDiscoveryRunning = false;
 
-        // Display names with aetheryte IDs annoyingly debugged
+        // Display names with aetheryte IDs
         private readonly Dictionary<uint, string> aetheryteDisplayNames = new()
         {
             // === A Realm Reborn (ARR) Aetherytes - IDs 2-24 ===
@@ -58,7 +61,7 @@ namespace ZoneLevelGuide
             { 96, "Estate Hall (Free Company)" },
             { 97, "Estate Hall (Private)" },
             
-            // === Heavensward Aetherytes - Corrected IDs ===
+            // === Heavensward Aetherytes ===
             { 70, "Foundation" },
             { 71, "Falcon's Nest" },
             { 72, "Camp Cloudtop" },
@@ -70,7 +73,7 @@ namespace ZoneLevelGuide
             { 78, "Moghome" },
             { 79, "Zenith" },
             
-            // === Stormblood Aetherytes - Corrected IDs ===
+            // === Stormblood Aetherytes ===
             { 98, "Castrum Oriens" },
             { 99, "The Peering Stones" },
             { 100, "Ala Gannha" },
@@ -88,7 +91,7 @@ namespace ZoneLevelGuide
             { 127, "The Doman Enclave" },
             { 128, "Dhoro Iloh" },
             
-            // === Shadowbringers Aetherytes - Corrected IDs ===
+            // === Shadowbringers Aetherytes ===
             { 132, "Fort Jobb" },
             { 133, "The Crystarium" },
             { 134, "Eulmore" },
@@ -109,7 +112,7 @@ namespace ZoneLevelGuide
             { 163, "Estate Hall (Free Company)" },
             { 164, "Estate Hall (Private)" },
             
-            // === Endwalker Aetherytes - Corrected IDs ===
+            // === Endwalker Aetherytes ===
             { 166, "The Archeion" },
             { 167, "Sharlayan Hamlet" },
             { 168, "Aporia" },
@@ -129,7 +132,7 @@ namespace ZoneLevelGuide
             { 182, "Old Sharlayan" },
             { 183, "Radz-at-Han" },
             
-            // === Dawntrail Aetherytes - Corrected IDs ===
+            // === Dawntrail Aetherytes ===
             { 200, "Wachunpelo" },
             { 201, "Worlar's Echo" },
             { 202, "Ok'hanu" },
@@ -155,6 +158,7 @@ namespace ZoneLevelGuide
         {
             this.chatGui = chatGui;
             this.pluginInterface = pluginInterface;
+            this.commandManager = commandManager;
             this.clientState = clientState;
             
             // Subscribe to TeleporterPlugin IPC
@@ -181,7 +185,6 @@ namespace ZoneLevelGuide
                         return;
                     }
 
-                    // Use the aetheryte ID directly - no more mapping needed!
                     if (TryIpcTeleport(aetheryteId, displayName))
                     {
                         lastTeleport = DateTime.Now;
@@ -202,13 +205,37 @@ namespace ZoneLevelGuide
             }
         }
 
+        public void ExecuteEstateCommand(string estateName)
+        {
+            try
+            {
+                // Rate limiting
+                if ((DateTime.Now - lastTeleport).TotalSeconds < 3)
+                {
+                    chatGui?.PrintError("Wait a moment before teleporting again.");
+                    return;
+                }
+
+                // Execute the /tp command with the estate name
+                string command = $"/tp {estateName}";
+                chatGui?.Print($"Executing: {command}");
+                
+                // This is safe - it uses Dalamud's command processing system
+                commandManager.ProcessCommand(command);
+                lastTeleport = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                chatGui?.PrintError($"Failed to execute estate command: {ex.Message}");
+            }
+        }
+
         private bool TryIpcTeleport(uint aetheryteId, string displayName)
         {
             try
             {
                 if (teleportSubscriber != null)
                 {
-                    // Use the correct aetheryte ID
                     var result = teleportSubscriber.InvokeFunc(aetheryteId, 0);
                     
                     if (result)
@@ -232,10 +259,6 @@ namespace ZoneLevelGuide
                 return false;
             }
         }
-        private bool isAutoDiscoveryRunning = false;
-
-        // Add references to client state for location logging
-        private IClientState? clientState;
 
         // Call this to start automated discovery
         public async Task StartAutoDiscovery(uint startId = 0, uint endId = 999, int delaySeconds = 10, string logPath = "AetheryteDiscoveryLog.txt")
@@ -301,5 +324,15 @@ namespace ZoneLevelGuide
             isAutoDiscoveryRunning = false;
             chatGui?.Print("Auto-discovery will stop after the current ID.");
         }
+
+        public void Dispose()
+        {
+            // Stop any running auto-discovery
+            StopAutoDiscovery();
+            
+            // Clean up IPC subscription
+            teleportSubscriber = null;
+        }
     }
 }
+
