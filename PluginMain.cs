@@ -16,9 +16,6 @@ namespace ZoneLevelGuide
         private readonly ZoneLevelWindow zoneLevelWindow;
         private readonly IDalamudPluginInterface pluginInterface;
         private readonly TeleporterService teleporterService;
-        private readonly DebugWindow debugWindow; // Add this line
-
-        private readonly Action openMainUiCallback;
 
         public PluginMain(
             IDalamudPluginInterface pluginInterface,
@@ -34,28 +31,28 @@ namespace ZoneLevelGuide
             this.pluginInterface = pluginInterface;
             this.commandManager = commandManager;
 
-            // Initialize teleporter service for teleport commands
+            // Create teleporter service with command manager for /tp commands
             this.teleporterService = new TeleporterService(pluginInterface, chatGui, commandManager, sigScanner, gameInterop);
 
-            // Initialize window system and main window
+            // Set up window system
             windowSystem = new WindowSystem("ZoneLevelGuide");
             zoneLevelWindow = new ZoneLevelWindow(this.teleporterService);
-            debugWindow = new DebugWindow(this.teleporterService); // Add this line
             windowSystem.AddWindow(zoneLevelWindow);
-            windowSystem.AddWindow(debugWindow); // Add this line
 
             // Register UI events
             pluginInterface.UiBuilder.Draw += DrawUI;
             pluginInterface.UiBuilder.OpenConfigUi += OpenConfigUI;
 
-            // Register OpenMainUi callback
-            openMainUiCallback = () => zoneLevelWindow.IsOpen = true;
-            pluginInterface.UiBuilder.OpenMainUi += openMainUiCallback;
-
-            // Register main command
-            this.commandManager.AddHandler("/zg", new CommandInfo(OnCommand)
+            // Register command
+            this.commandManager.AddHandler("/zoneguide", new CommandInfo(OnCommand)
             {
                 HelpMessage = "Display zone level information"
+            });
+
+            // Optionally register additional command
+            this.commandManager.AddHandler("/zg", new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Display zone level information (alternative command)"
             });
         }
 
@@ -66,7 +63,7 @@ namespace ZoneLevelGuide
 
         private void OpenConfigUI()
         {
-            debugWindow.IsOpen = true; // Open the debug window from settings
+            zoneLevelWindow.IsOpen = true;
         }
 
         private void DrawUI()
@@ -78,9 +75,9 @@ namespace ZoneLevelGuide
         {
             pluginInterface.UiBuilder.Draw -= DrawUI;
             pluginInterface.UiBuilder.OpenConfigUi -= OpenConfigUI;
-            pluginInterface.UiBuilder.OpenMainUi -= openMainUiCallback;
 
             windowSystem.RemoveAllWindows();
+            commandManager.RemoveHandler("/zoneguide");
             commandManager.RemoveHandler("/zg");
         }
     }

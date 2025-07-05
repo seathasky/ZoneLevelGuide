@@ -1,9 +1,12 @@
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game;
+using Dalamud.Game.ClientState;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using System;
 using System.Collections.Generic;
-using Dalamud.Logging;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace ZoneLevelGuide
 {
@@ -12,16 +15,17 @@ namespace ZoneLevelGuide
         void Teleport(uint aetheryteId);
     }
 
-    public partial class TeleporterService : ITeleporterIpc
+    public class TeleporterService : ITeleporterIpc
     {
         private readonly IChatGui chatGui;
         private readonly IDalamudPluginInterface pluginInterface;
         private DateTime lastTeleport = DateTime.MinValue;
         private Dalamud.Plugin.Ipc.ICallGateSubscriber<uint, byte, bool>? teleportSubscriber;
 
-        // I hated doing this, did all these fucking manually
+        // Display names with aetheryte IDs annoyingly debugged
         private readonly Dictionary<uint, string> aetheryteDisplayNames = new()
         {
+            // === A Realm Reborn (ARR) Aetherytes - IDs 2-24 ===
             { 2, "New Gridania" },
             { 3, "Bentbranch Meadows" },
             { 4, "The Hawthorne Hut" },
@@ -45,10 +49,16 @@ namespace ZoneLevelGuide
             { 22, "Ceruleum Processing Plant" },
             { 23, "Camp Dragonhead" },
             { 24, "Revenant's Toll" },
+            
+            // === Additional ARR Areas ===
             { 52, "Summerford Farms" },
             { 53, "Black Brush Station" },
             { 54, "Wolves' Den Pier" },
             { 61, "The Gold Saucer" },
+            { 96, "Estate Hall (Free Company)" },
+            { 97, "Estate Hall (Private)" },
+            
+            // === Heavensward Aetherytes - Corrected IDs ===
             { 70, "Foundation" },
             { 71, "Falcon's Nest" },
             { 72, "Camp Cloudtop" },
@@ -59,8 +69,8 @@ namespace ZoneLevelGuide
             { 77, "Anyx Trine" },
             { 78, "Moghome" },
             { 79, "Zenith" },
-            { 96, "Estate Hall (Free Company)" },
-            { 97, "Estate Hall (Private)" },
+            
+            // === Stormblood Aetherytes - Corrected IDs ===
             { 98, "Castrum Oriens" },
             { 99, "The Peering Stones" },
             { 100, "Ala Gannha" },
@@ -77,6 +87,8 @@ namespace ZoneLevelGuide
             { 111, "Kugane" },
             { 127, "The Doman Enclave" },
             { 128, "Dhoro Iloh" },
+            
+            // === Shadowbringers Aetherytes - Corrected IDs ===
             { 132, "Fort Jobb" },
             { 133, "The Crystarium" },
             { 134, "Eulmore" },
@@ -96,6 +108,8 @@ namespace ZoneLevelGuide
             { 161, "The Inn at Journey's Head" },
             { 163, "Estate Hall (Free Company)" },
             { 164, "Estate Hall (Private)" },
+            
+            // === Endwalker Aetherytes - Corrected IDs ===
             { 166, "The Archeion" },
             { 167, "Sharlayan Hamlet" },
             { 168, "Aporia" },
@@ -114,6 +128,8 @@ namespace ZoneLevelGuide
             { 181, "Base Omicron" },
             { 182, "Old Sharlayan" },
             { 183, "Radz-at-Han" },
+            
+            // === Dawntrail Aetherytes - Corrected IDs ===
             { 200, "Wachunpelo" },
             { 201, "Worlar's Echo" },
             { 202, "Ok'hanu" },
@@ -135,10 +151,11 @@ namespace ZoneLevelGuide
             { 238, "Dock Poga" }
         };
 
-        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, ISigScanner sigScanner, IGameInteropProvider gameInterop)
+        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, ISigScanner sigScanner, IGameInteropProvider gameInterop, IClientState? clientState = null)
         {
             this.chatGui = chatGui;
             this.pluginInterface = pluginInterface;
+            this.clientState = clientState;
             
             // Subscribe to TeleporterPlugin IPC
             try
@@ -214,6 +231,75 @@ namespace ZoneLevelGuide
                 chatGui?.Print($"Error teleporting to {displayName}: {ex.Message}");
                 return false;
             }
+        }
+        private bool isAutoDiscoveryRunning = false;
+
+        // Add references to client state for location logging
+        private IClientState? clientState;
+
+        // Call this to start automated discovery
+        public async Task StartAutoDiscovery(uint startId = 0, uint endId = 999, int delaySeconds = 10, string logPath = "AetheryteDiscoveryLog.txt")
+        {
+            if (isAutoDiscoveryRunning)
+            {
+                chatGui?.PrintError("Auto-discovery is already running.");
+                return;
+            }
+            isAutoDiscoveryRunning = true;
+            chatGui?.Print($"Starting auto-discovery from ID {startId} to {endId}...");
+
+            // Ensure log file is in plugin config directory
+            string configDir = pluginInterface.GetPluginConfigDirectory();
+            if (!Directory.Exists(configDir))
+                Directory.CreateDirectory(configDir);
+            string fullLogPath = Path.Combine(configDir, logPath);
+
+            using var logWriter = new StreamWriter(fullLogPath, append: true);
+            for (uint id = startId; id <= endId && isAutoDiscoveryRunning; id++)
+            {
+                bool result = false;
+                string error = "";
+                string territory = "";
+                string coords = "";
+
+                try
+                {
+                    if (teleportSubscriber != null)
+                    {
+                        result = teleportSubscriber.InvokeFunc(id, 0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    error = ex.Message;
+                }
+
+                // Wait for teleport to finish and player to load
+                await Task.Delay(delaySeconds * 1000);
+
+                // Try to get current territory and coordinates
+                if (clientState != null && clientState.LocalPlayer != null)
+                {
+                    territory = clientState.TerritoryType.ToString();
+                    var player = clientState.LocalPlayer;
+                    coords = $"{player.Position.X:0.0},{player.Position.Y:0.0},{player.Position.Z:0.0}";
+                }
+
+                string logLine = $"{DateTime.Now:u} | ID: {id} | Success: {result} | Error: {error} | Territory: {territory} | Coords: {coords}";
+                logWriter.WriteLine(logLine);
+                logWriter.Flush();
+
+                chatGui?.Print($"[AutoDiscovery] {logLine}");
+            }
+            isAutoDiscoveryRunning = false;
+            chatGui?.Print($"Auto-discovery finished or stopped. Log: {fullLogPath}");
+        }
+
+        // Call this to stop the automated discovery
+        public void StopAutoDiscovery()
+        {
+            isAutoDiscoveryRunning = false;
+            chatGui?.Print("Auto-discovery will stop after the current ID.");
         }
     }
 }

@@ -2,7 +2,7 @@
 <Project Sdk="Dalamud.NET.Sdk/12.0.2">
   <PropertyGroup>
     <Authors>Seathasky</Authors>
-    <Version>1.0.0.4</Version>
+    <Version>1.0.0.5</Version>
     <Description>Shows level ranges for all zones in FFXIV</Description>
     <PackageProjectUrl>https://github.com/Seathasky/ZoneLevelGuide</PackageProjectUrl>
   </PropertyGroup>
@@ -22,9 +22,6 @@
   <PropertyGroup>
     <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
   </PropertyGroup>
-  <PropertyGroup>
-    <DalamudLibPath Condition=" '$(OS)' == 'Unix' ">$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/</DalamudLibPath>
-  </PropertyGroup>
 
   <ItemGroup>
     <Content Include="ZoneLevelGuide.json">
@@ -32,3 +29,5 @@
     </Content>
   </ItemGroup>
 </Project>
+
+
