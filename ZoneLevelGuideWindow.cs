@@ -27,17 +27,22 @@ namespace ZoneLevelGuide
         };
 
         public ZoneLevelWindow(ITeleporterIpc? teleporter = null) : base(
-            "Zone Level Guide",
-            ImGuiWindowFlags.NoCollapse)
-        {
-            this.teleporter = teleporter;
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = new Vector2(750, 400),
-                MaximumSize = new Vector2(1200, 800)
-            };
-            tabOpen = new bool[tabInfo.Length];
-        }
+    "Zone Level Guide",
+    ImGuiWindowFlags.NoCollapse)
+{
+    this.teleporter = teleporter;
+
+    SizeConstraints = new WindowSizeConstraints
+    {
+        MinimumSize = new Vector2(750, 400),
+        MaximumSize = new Vector2(1200, 800)
+    };
+
+    this.Size = new Vector2(1000, 800); // Set initial size
+    this.SizeCondition = ImGuiCond.FirstUseEver; // Only apply once
+
+    tabOpen = new bool[tabInfo.Length];
+}
 
         public override void Draw()
         {
