@@ -56,8 +56,8 @@ namespace ZoneLevelGuide
             // === Additional ARR Areas ===
             { 52, "Summerford Farms" },
             { 53, "Black Brush Station" },
-            { 54, "Wolves' Den Pier" },
-            { 61, "The Gold Saucer" },
+            { 55, "Wolves' Den Pier" },
+            { 62, "The Gold Saucer" },
             { 96, "Estate Hall (Free Company)" },
             { 97, "Estate Hall (Private)" },
             
