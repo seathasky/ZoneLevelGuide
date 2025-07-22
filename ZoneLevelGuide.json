@@ -4,7 +4,7 @@
   "Description": "Shows level ranges in zones",
   "Punchline": "Never wonder 'What level is this zone?' again!",
   "InternalName": "ZoneLevelGuide",
-  "AssemblyVersion": "1.0.0.8",
+  "AssemblyVersion": "1.0.0.9",
   "Tags": [ "UI", "Leveling", "Zone" ],
   "RepoUrl": "https://github.com/seathasky/ZoneLevelGuide",
   "ApplicableVersion": "any",

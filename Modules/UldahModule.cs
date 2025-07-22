@@ -45,7 +45,7 @@ namespace ZoneLevelGuide.Modules
             
             DrawZoneSection("Gold Saucer", "15+",
                 "Manderville's entertainment paradise with games, races, and prizes.",
-                () => DrawTeleportButton("The Gold Saucer", 61), Color);
+                () => DrawTeleportButton("The Gold Saucer", 62), Color);
         }
     }
 }

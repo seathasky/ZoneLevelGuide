@@ -18,7 +18,7 @@ namespace ZoneLevelGuide.Modules
             DrawZoneSection("Wolves' Den Pier", "Level 30+",
                 "Main PvP hub and training area",
                 () => {
-                    DrawPvPTeleportButton("Wolves' Den Pier", 54);
+                    DrawPvPTeleportButton("Wolves' Den Pier", 55);
                     ImGui.Spacing();
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.8f, 1.0f)); // Light red
                     ImGui.TextWrapped("Central hub for all PvP activities:");
