@@ -1,6 +1,8 @@
 using ImGuiNET;
 using System.Numerics;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
@@ -13,11 +15,28 @@ namespace ZoneLevelGuide.Modules
         private const int MAX_TELEPORT_ENTRIES = 50;
         private const int MAX_AETHERYTE_ID = 10000;
         
+        // Housing districts and their teleport IDs
+        private static readonly Dictionary<string, uint> HousingDistricts = new()
+        {
+            { "The Mist", 8 },          // Limsa Lominsa Lower Decks
+            { "Lavender Beds", 2 },     // New Gridania  
+            { "The Goblet", 9 },        // Ul'dah - Steps of Nald
+            { "Shirogane", 111 },       // Kugane
+            { "Empyreum", 70 }          // Foundation
+        };
+        
+        // Favorite district settings
+        private string selectedDistrict = "The Mist";
+        private string favoriteDistrict = "";
+        
         public override string ZoneName => "Housing";
         public override string LevelRange => "Any Level";
         public override Vector4 Color => new Vector4(0.8f, 0.6f, 0.4f, 1.0f); // Warm brown/orange for housing
 
-        public HousingModule(ITeleporterIpc? teleporter) : base(teleporter) { }
+        public HousingModule(ITeleporterIpc? teleporter) : base(teleporter) 
+        {
+            LoadFavoriteWard();
+        }
 
         public override void DrawContent()
         {
@@ -37,23 +56,7 @@ namespace ZoneLevelGuide.Modules
                     ImGui.PopStyleColor();
                 }, Color);
             
-            DrawZoneSection("Housing Districts", "Any Level",
-                "Teleport to main cities near housing areas",
-                () => {
-                    DrawTeleportButton("The Mist (via Limsa)", 8); // Limsa Lominsa Lower Decks
-                    ImGui.SameLine();
-                    DrawTeleportButton("Lavender Beds (via Gridania)", 2); // New Gridania
-                    ImGui.SameLine();
-                    DrawTeleportButton("The Goblet (via Ul'dah)", 9); // Ul'dah - Steps of Nald
-                    ImGui.Spacing();
-                    DrawTeleportButton("Shirogane (via Kugane)", 111); // Kugane
-                    ImGui.SameLine();
-                    DrawTeleportButton("Empyreum (via Ishgard)", 70); // Foundation
-                    ImGui.Spacing();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.6f, 1.0f)); // Light yellow
-                    ImGui.Text("(Walk to housing districts from these main cities)");
-                    ImGui.PopStyleColor();
-                }, Color);
+            DrawFavoriteWardSection();
             
             DrawHousingInformation();
             DrawTeleportInfoPopup();
@@ -172,11 +175,24 @@ namespace ZoneLevelGuide.Modules
         private bool TryGetSharedEstate(int index, out HouseId houseId)
         {
             houseId = default;
+
             try
             {
                 var estate = HousingManager.GetOwnedHouseId(EstateType.SharedEstate, index);
                 houseId = estate;
-                return estate.Id != 0;
+
+                // Validate ID first
+                if (estate.Id == 0)
+                    return false;
+
+                // Additional sanity checks to avoid garbage data
+                if (estate.WardIndex < 0 || estate.WardIndex > 60)
+                    return false;
+
+                if (estate.PlotIndex < 0 || estate.PlotIndex > 60)
+                    return false;
+
+                return true;
             }
             catch
             {
@@ -186,31 +202,28 @@ namespace ZoneLevelGuide.Modules
 
         private void DrawAvailableSharedEstates(bool hasEstate0, bool hasEstate1)
         {
-            if (hasEstate0)
+            // Collect only estates that actually exist
+            var estates = new List<(int index, HouseId id)>();
+
+            if (hasEstate0 && TryGetSharedEstate(0, out var estate0))
+                estates.Add((0, estate0));
+
+            if (hasEstate1 && TryGetSharedEstate(1, out var estate1))
+                estates.Add((1, estate1));
+
+            // If no valid estates, draw a generic fallback button
+            if (estates.Count == 0)
             {
-                if (TryGetSharedEstate(0, out var estate0))
-                {
-                    string estate0Info = GetEstateDisplayName(estate0);
-                    DrawSharedEstateButton($"🏡 Shared Estate 1 - {estate0Info}", "Shared Estate 1", 0);
-                }
-                
-                if (hasEstate1)
-                {
-                    ImGui.SameLine();
-                    if (TryGetSharedEstate(1, out var estate1))
-                    {
-                        string estate1Info = GetEstateDisplayName(estate1);
-                        DrawSharedEstateButton($"🏡 Shared Estate 2 - {estate1Info}", "Shared Estate 2", 1);
-                    }
-                }
+                DrawSharedEstateButton("🏡 Shared Estate", "Shared Estate", -1);
+                return;
             }
-            else if (hasEstate1)
+
+            // Draw a button for each detected shared estate
+            for (int i = 0; i < estates.Count; i++)
             {
-                if (TryGetSharedEstate(1, out var estate1))
-                {
-                    string estate1Info = GetEstateDisplayName(estate1);
-                    DrawSharedEstateButton($"🏡 Shared Estate 2 - {estate1Info}", "Shared Estate 2", 1);
-                }
+                if (i > 0) ImGui.SameLine();
+                string estateInfo = GetEstateDisplayName(estates[i].id);
+                DrawSharedEstateButton($"🏡 Shared Estate {i + 1} - {estateInfo}", $"Shared Estate {i + 1}", estates[i].index);
             }
         }
 
@@ -415,6 +428,174 @@ namespace ZoneLevelGuide.Modules
             return false;
         }
 
+        private void DrawFavoriteWardSection()
+        {
+            DrawZoneSection("Favorite District", "Any Level",
+                "Set and teleport to your favorite housing district.\n" +
+                "*This will not teleport you to a specific ward, only the district.*",
+                () => {
+                    // Show current favorite if set
+                    if (!string.IsNullOrEmpty(favoriteDistrict))
+                    {
+                        DrawFavoriteWardButton();
+                        ImGui.Spacing();
+                    }
+                    
+                    DrawFavoriteWardSettings();
+                }, Color);
+        }
+
+        private void DrawFavoriteWardButton()
+        {
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
+            
+            // Gold/star theme for favorite
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.7f, 0.2f, 0.8f)); 
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.8f, 0.3f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.9f, 0.4f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.1f, 0.1f, 0.1f, 1.0f)); // Dark text
+
+            string buttonText = $"⭐ {favoriteDistrict}";
+            bool pressed = ImGui.Button($"{buttonText}###favorite_district");
+            ImGui.PopStyleColor(4);
+            ImGui.PopStyleVar(2);
+
+            if (pressed && HousingDistricts.ContainsKey(favoriteDistrict) && teleporter != null)
+            {
+                try
+                {
+                    teleporter.Teleport(HousingDistricts[favoriteDistrict]);
+                }
+                catch (System.Exception)
+                {
+                    // Silently fail if teleport is not available
+                }
+            }
+            
+            ImGui.SameLine();
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.2f, 1.0f)); // Gold text
+            ImGui.Text("Favorite District");
+            ImGui.PopStyleColor();
+        }
+
+        private void DrawFavoriteWardSettings()
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
+            ImGui.Text("Set Favorite District:");
+            ImGui.PopStyleColor();
+            
+            ImGui.Spacing();
+            
+            // District dropdown
+            ImGui.PushItemWidth(200);
+            if (ImGui.BeginCombo("##district_combo", selectedDistrict))
+            {
+                foreach (var district in HousingDistricts.Keys)
+                {
+                    bool isSelected = selectedDistrict == district;
+                    if (ImGui.Selectable(district, isSelected))
+                    {
+                        selectedDistrict = district;
+                    }
+                    if (isSelected)
+                    {
+                        ImGui.SetItemDefaultFocus();
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.PopItemWidth();
+            
+            ImGui.SameLine();
+            
+            // Set Favorite button
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.2f, 0.8f)); // Green
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.8f, 0.3f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.9f, 0.4f, 1.0f));
+            
+            if (ImGui.Button("Set Favorite"))
+            {
+                SetFavoriteWard(selectedDistrict, 0); // Ward is no longer relevant
+            }
+            ImGui.PopStyleColor(3);
+            
+            // Clear favorite button if one is set
+            if (!string.IsNullOrEmpty(favoriteDistrict))
+            {
+                ImGui.SameLine();
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.3f, 0.3f, 0.8f)); // Red
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.4f, 0.4f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.9f, 0.5f, 0.5f, 1.0f));
+                
+                if (ImGui.Button("Clear"))
+                {
+                    ClearFavoriteWard();
+                }
+                ImGui.PopStyleColor(3);
+            }
+            
+            ImGui.Spacing();
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f)); // Gray
+            ImGui.TextWrapped("Note: This teleports to the main city near the housing district.");
+            ImGui.PopStyleColor();
+        }
+
+        private void SetFavoriteWard(string district, int ward)
+        {
+            favoriteDistrict = district;
+            SaveFavoriteWard();
+        }
+
+        private void ClearFavoriteWard()
+        {
+            favoriteDistrict = "";
+            SaveFavoriteWard();
+        }
+
+        private void SaveFavoriteWard()
+        {
+            try
+            {
+                // For now, we'll use a simple file-based persistence
+                // This ensures the feature works without complex configuration dependencies
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
+                Directory.CreateDirectory(configPath);
+                
+                string configFile = Path.Combine(configPath, "favorite_ward.txt");
+                File.WriteAllText(configFile, favoriteDistrict);
+            }
+            catch
+            {
+                // If file save fails, we'll just keep it in memory for this session
+                // This is a fallback to prevent crashes
+            }
+        }
+
+        private void LoadFavoriteWard()
+        {
+            try
+            {
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
+                string configFile = Path.Combine(configPath, "favorite_ward.txt");
+                
+                if (File.Exists(configFile))
+                {
+                    string content = File.ReadAllText(configFile).Trim();
+                    
+                    if (!string.IsNullOrEmpty(content) && HousingDistricts.ContainsKey(content))
+                    {
+                        favoriteDistrict = content;
+                    }
+                }
+            }
+            catch
+            {
+                // If loading fails, start with defaults
+                favoriteDistrict = "";
+            }
+        }
+
         private void DrawTeleportInfoPopup()
         {
             // Show estate command info popup
@@ -456,31 +637,27 @@ namespace ZoneLevelGuide.Modules
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
-            
+
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-            ImGui.SetWindowFontScale(1.1f);
             ImGui.Text("🏠 Housing Information");
-            ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
-            
+
             ImGui.Spacing();
-            
+
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.85f, 0.85f, 0.85f, 1.0f));
-            ImGui.TextWrapped("Housing Districts & Access:");
+            ImGui.TextWrapped("Housing Districts:");
             ImGui.Indent(10.0f);
-            ImGui.Text("• The Mist (Limsa Lominsa) - Ferry from Lower Decks");
-            ImGui.Text("• The Lavender Beds (Gridania) - Exit from New Gridania");
-            ImGui.Text("• The Goblet (Ul'dah) - Exit from Steps of Nald");
-            ImGui.Text("• Shirogane (Kugane) - Boat from Kugane docks");
-            ImGui.Text("• Empyreum (Ishgard) - Lift from Foundation");
+            ImGui.Text("The Mist (Limsa)");
+            ImGui.Text("Lavender Beds (Gridania)");
+            ImGui.Text("The Goblet (Ul'dah)");
+            ImGui.Text("Shirogane (Kugane)");
+            ImGui.Text("Empyreum (Ishgard)");
             ImGui.Unindent(10.0f);
-            
+            ImGui.PopStyleColor();
+
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.9f, 0.9f, 1.0f)); // Light cyan
-            ImGui.TextWrapped("Note: Estate teleportation only works if you own housing or have FC housing access. " +
-                            "For multiple shared estates, the plugin can now teleport directly to each specific estate " +
-                            "using FFXIV's internal Telepo system. Each button will take you to its respective shared estate!");
-            ImGui.PopStyleColor();
+            ImGui.TextWrapped("• Estate teleportation requires ownership or access.\n• Shared estate buttons teleport directly to each available shared estate.");
             ImGui.PopStyleColor();
         }
     }
