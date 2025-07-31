@@ -19,10 +19,6 @@ namespace ZoneLevelGuide.Modules
                 "Holy See of Ishgard - theocratic city-state and Heavensward starting area.",
                 () => DrawTeleportButton("Foundation", 70), Color);
             
-            DrawZoneSection("Coerthas Western Highlands", "50-53",
-                "Frozen borderlands between Ishgard and dragon territories.",
-                () => DrawTeleportButton("Falcon's Nest", 71), Color);
-            
             DrawZoneSection("The Sea of Clouds", "51-54",
                 "Floating islands in the sky, home to the Vanu Vanu beast tribe.",
                 () => {

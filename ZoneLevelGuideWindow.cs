@@ -39,6 +39,7 @@ namespace ZoneLevelGuide
         private readonly IZoneModule[] zoneModules;
 
         private readonly (string name, string levels, Vector4 color)[] tabInfo = {
+            ("★ Favorites", "Quick Access", new Vector4(1.0f, 0.8f, 0.2f, 1.0f)),
             ("Gridania", "1-30", new Vector4(0.4f, 0.8f, 0.4f, 1.0f)),
             ("Limsa Lominsa", "1-50", new Vector4(0.4f, 0.7f, 1.0f, 1.0f)),
             ("Ul'dah", "1-50", new Vector4(1.0f, 0.8f, 0.4f, 1.0f)),
@@ -60,8 +61,12 @@ namespace ZoneLevelGuide
             this.teleporter = teleporter;
 
             // Initialize zone modules
+            var favoritesModule = new FavoritesModule(teleporter);
+            BaseZoneModule.FavoritesManager = favoritesModule;
+            
             zoneModules = new IZoneModule[]
             {
+                favoritesModule,
                 new GridaniaModule(teleporter),
                 new LimsaModule(teleporter),
                 new UldahModule(teleporter),
@@ -190,8 +195,18 @@ namespace ZoneLevelGuide
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 3));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2.0f);
             
-            // Draw main zone tabs (first 10)
-            for (int i = 0; i < tabInfo.Length - 2; i++)
+            // Draw Favorites tab first (index 0)
+            DrawTabButton(0);
+            
+            // Add divider after Favorites
+            ImGui.Spacing();
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(1.0f, 0.8f, 0.2f, 0.8f)); // Golden separator
+            ImGui.Separator();
+            ImGui.PopStyleColor();
+            ImGui.Spacing();
+            
+            // Draw main zone tabs (indexes 1 through tabInfo.Length - 3)
+            for (int i = 1; i < tabInfo.Length - 2; i++)
             {
                 DrawTabButton(i);
             }

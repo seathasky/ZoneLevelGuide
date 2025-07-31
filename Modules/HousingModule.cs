@@ -10,32 +10,68 @@ namespace ZoneLevelGuide.Modules
 {
     public class HousingModule : BaseZoneModule
     {
-        // Constants for better maintainability
         private const int MAX_SHARED_ESTATES = 2;
         private const int MAX_TELEPORT_ENTRIES = 50;
         private const int MAX_AETHERYTE_ID = 10000;
         
-        // Housing districts and their teleport IDs
         private static readonly Dictionary<string, uint> HousingDistricts = new()
         {
-            { "The Mist", 8 },          // Limsa Lominsa Lower Decks
-            { "Lavender Beds", 2 },     // New Gridania  
-            { "The Goblet", 9 },        // Ul'dah - Steps of Nald
-            { "Shirogane", 111 },       // Kugane
-            { "Empyreum", 70 }          // Foundation
+            { "The Mist", 8 },
+            { "Lavender Beds", 2 },
+            { "The Goblet", 9 },
+            { "Shirogane", 111 },
+            { "Empyreum", 70 }
         };
-        
-        // Favorite district settings
-        private string selectedDistrict = "The Mist";
-        private string favoriteDistrict = "";
         
         public override string ZoneName => "Housing";
         public override string LevelRange => "Any Level";
-        public override Vector4 Color => new Vector4(0.8f, 0.6f, 0.4f, 1.0f); // Warm brown/orange for housing
+        public override Vector4 Color => new Vector4(0.8f, 0.6f, 0.4f, 1.0f);
+
+        private Dictionary<int, string> sharedEstateNames = new();
 
         public HousingModule(ITeleporterIpc? teleporter) : base(teleporter) 
         {
-            LoadFavoriteWard();
+            LoadSharedEstateNames();
+        }
+        
+        private void SaveSharedEstateNames()
+        {
+            try
+            {
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
+                Directory.CreateDirectory(configPath);
+                string configFile = Path.Combine(configPath, "shared_estate_names.txt");
+                using (var writer = new StreamWriter(configFile, false))
+                {
+                    foreach (var kvp in sharedEstateNames)
+                    {
+                        writer.WriteLine($"{kvp.Key}:{kvp.Value.Replace("\n", " ").Replace("\r", " ")}");
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void LoadSharedEstateNames()
+        {
+            sharedEstateNames.Clear();
+            try
+            {
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
+                string configFile = Path.Combine(configPath, "shared_estate_names.txt");
+                if (File.Exists(configFile))
+                {
+                    foreach (var line in File.ReadAllLines(configFile))
+                    {
+                        var parts = line.Split(new[] { ':' }, 2);
+                        if (parts.Length == 2 && int.TryParse(parts[0], out int idx))
+                        {
+                            sharedEstateNames[idx] = parts[1];
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         public override void DrawContent()
@@ -47,16 +83,14 @@ namespace ZoneLevelGuide.Modules
                 () => {
                     DrawEstateButtons();
                     ImGui.Spacing();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.9f, 0.8f, 1.0f)); // Light green
-                    ImGui.TextWrapped("These buttons use the game's estate teleportation system:");
-                    ImGui.Indent(10.0f);
-                    ImGui.Text("• Only work if you own housing or have FC housing access");
-                    ImGui.Text("• Will show an error if you don't have housing");
-                    ImGui.Unindent(10.0f);
-                    ImGui.PopStyleColor();
                 }, Color);
             
-            DrawFavoriteWardSection();
+            DrawZoneSection("Housing Districts", "Any Level",
+                "Teleport to housing district entrances",
+                () => {
+                    DrawHousingDistrictButtons();
+                    ImGui.Spacing();
+                }, Color);
             
             DrawHousingInformation();
             DrawTeleportInfoPopup();
@@ -64,18 +98,47 @@ namespace ZoneLevelGuide.Modules
 
         private void DrawEstateButtons()
         {
-            // Private Estate Button
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
             
+            string privateEstateKey = "Housing_PrivateEstate_EstateHall";
+            bool isPrivateFavorited = FavoritesManager?.IsFavorite(privateEstateKey) ?? false;
+            
+            ImGui.PushStyleColor(ImGuiCol.Text, isPrivateFavorited ? 
+                new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : 
+                new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+            
+            if (ImGui.Button($"★##star_private_estate"))
+            {
+                if (FavoritesManager != null)
+                {
+                    if (isPrivateFavorited)
+                    {
+                        FavoritesManager.RemoveFavorite(privateEstateKey);
+                    }
+                    else
+                    {
+                        FavoritesManager.AddFavorite(privateEstateKey, "Private Estate Hall", ZoneName, "Estate Hall", 0, new Vector4(0.639f, 0.745f, 0.549f, 0.8f));
+                    }
+                }
+            }
+            ImGui.PopStyleColor();
+            
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(isPrivateFavorited ? "Remove from favorites" : "Add to favorites");
+            }
+            
+            ImGui.SameLine();
+            
             if (teleporter != null)
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.4f, 0.6f, 0.4f, 0.8f)); // Green theme for estate
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.7f, 0.5f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.8f, 0.6f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.639f, 0.745f, 0.549f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.739f, 0.845f, 0.649f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.839f, 0.945f, 0.749f, 1.0f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.95f, 0.95f, 1.0f));
 
-                bool pressedPrivate = ImGui.Button("🏠 Private Estate Hall###private_estate");
+                bool pressedPrivate = ImGui.Button("Private Estate Hall###private_estate");
                 ImGui.PopStyleColor(4);
 
                 if (pressedPrivate)
@@ -85,23 +148,52 @@ namespace ZoneLevelGuide.Modules
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.35f, 0.35f, 0.35f, 0.6f));
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
-                ImGui.Button("🏠 Private Estate Hall###disabled_private");
+                ImGui.Button("Private Estate Hall###disabled_private");
                 ImGui.PopStyleColor(2);
             }
 
             ImGui.SameLine();
 
-            // FC Estate Button
+            string fcEstateKey = "Housing_FCEstate_EstateHallFC";
+            bool isFCFavorited = FavoritesManager?.IsFavorite(fcEstateKey) ?? false;
+            
+            ImGui.PushStyleColor(ImGuiCol.Text, isFCFavorited ? 
+                new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : 
+                new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+            
+            if (ImGui.Button($"★##star_fc_estate"))
+            {
+                if (FavoritesManager != null)
+                {
+                    if (isFCFavorited)
+                    {
+                        FavoritesManager.RemoveFavorite(fcEstateKey);
+                    }
+                    else
+                    {
+                        FavoritesManager.AddFavorite(fcEstateKey, "FC Estate Hall", ZoneName, "Estate Hall (Free Company)", 0, new Vector4(0.369f, 0.506f, 0.675f, 0.8f));
+                    }
+                }
+            }
+            ImGui.PopStyleColor();
+            
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(isFCFavorited ? "Remove from favorites" : "Add to favorites");
+            }
+            
+            ImGui.SameLine();
+
             if (teleporter != null)
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.4f, 0.4f, 0.6f, 0.8f)); // Blue theme for FC
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.5f, 0.7f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.6f, 0.8f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.369f, 0.506f, 0.675f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.506f, 0.631f, 0.757f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.533f, 0.753f, 0.816f, 1.0f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.95f, 0.95f, 1.0f));
 
-                bool pressedFC = ImGui.Button("🏰 FC Estate Hall###fc_estate");
+                bool pressedFC = ImGui.Button("FC Estate Hall###fc_estate");
                 ImGui.PopStyleColor(4);
 
                 if (pressedFC)
@@ -111,23 +203,37 @@ namespace ZoneLevelGuide.Modules
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.35f, 0.35f, 0.35f, 0.6f));
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
-                ImGui.Button("🏰 FC Estate Hall###disabled_fc");
+                ImGui.Button("FC Estate Hall###disabled_fc");
                 ImGui.PopStyleColor(2);
             }
 
-            // Add a new line for shared estate buttons
             ImGui.NewLine();
             DrawSharedEstateSection();
 
             ImGui.PopStyleVar(2);
         }
 
+        private void DrawHousingDistrictButtons()
+        {
+            DrawTeleportButtonWithStar("The Mist", 8, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
+            ImGui.SameLine();
+            DrawTeleportButtonWithStar("Lavender Beds", 2, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
+            ImGui.SameLine();
+            DrawTeleportButtonWithStar("The Goblet", 9, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
+            
+            DrawTeleportButtonWithStar("Shirogane", 111, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
+            ImGui.SameLine();
+            DrawTeleportButtonWithStar("Empyreum", 70, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
+        }
+
         private void DrawSharedEstateSection()
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.6f, 1.0f)); // Light yellow
-            ImGui.Text("Shared Estates:");
+            ImGui.Separator();
+            ImGui.Spacing();
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.922f, 0.796f, 0.545f, 1.0f));
+            ImGui.Text("Shared Estates");
             ImGui.PopStyleColor();
 
             try
@@ -141,7 +247,7 @@ namespace ZoneLevelGuide.Modules
                 else
                 {
                     // Fallback: single shared estate button
-                    DrawSharedEstateButton("🏡 Shared Estate", "Shared Estate", -1);
+                    DrawSharedEstateButton("Shared Estate", "Shared Estate", -1);
                 }
             }
             catch
@@ -214,24 +320,221 @@ namespace ZoneLevelGuide.Modules
             // If no valid estates, draw a generic fallback button
             if (estates.Count == 0)
             {
-                DrawSharedEstateButton("🏡 Shared Estate", "Shared Estate", -1);
+                DrawSharedEstateButton("Shared Estate", "Shared Estate", -1);
                 return;
             }
 
-            // Draw a button for each detected shared estate
+            // Draw a button for each detected shared estate, with custom name UI
+            // Draw all shared estate buttons with their custom titles
             for (int i = 0; i < estates.Count; i++)
             {
-                if (i > 0) ImGui.SameLine();
+                int idx = estates[i].index;
                 string estateInfo = GetEstateDisplayName(estates[i].id);
-                DrawSharedEstateButton($"🏡 Shared Estate {i + 1} - {estateInfo}", $"Shared Estate {i + 1}", estates[i].index);
+                string customName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
+                    ? sharedEstateNames[idx]
+                    : $"Shared Estate {i + 1}";
+
+                // Draw the star and button with consistent styling
+                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
+                ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
+                
+                // Check if this shared estate is favorited
+                string sharedEstateKey = $"Shared:{customName}:{estateInfo}";
+                bool isFavorited = FavoritesManager?.IsFavorite(sharedEstateKey) ?? false;
+                
+                // Draw star button first (consistent with other modules)
+                ImGui.PushStyleColor(ImGuiCol.Text, isFavorited ? 
+                    new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : // Golden when favorited
+                    new Vector4(0.5f, 0.5f, 0.5f, 1.0f)); // Gray when not favorited
+                
+                if (ImGui.Button($"★##star_shared_{idx}"))
+                {
+                    if (FavoritesManager != null)
+                    {
+                        if (isFavorited)
+                        {
+                            FavoritesManager.RemoveFavorite(sharedEstateKey);
+                        }
+                        else
+                        {
+                            // Store the estate index in the aetheryte ID field for shared estates (use special range)
+                            uint specialId = (uint)(10000 + idx); // Use ID range 10000+ for shared estates
+                            FavoritesManager.AddFavorite(sharedEstateKey, $"{customName}: {estateInfo}", ZoneName, $"SharedEstate_{idx}", specialId, new Vector4(0.369f, 0.506f, 0.675f, 1.0f));
+                        }
+                    }
+                }
+                ImGui.PopStyleColor();
+                
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(isFavorited ? "Remove from favorites" : "Add to favorites");
+                }
+                
+                ImGui.SameLine();
+                
+                // Main shared estate button
+                if (teleporter != null)
+                {
+                    // Plot Button BG: Blue (#5E81AC) with hover states
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.369f, 0.506f, 0.675f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.506f, 0.631f, 0.757f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.533f, 0.753f, 0.816f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.925f, 0.937f, 0.957f, 1.0f)); // Plot Button Text: Off-white (#ECEFF4)
+
+                    bool pressed = ImGui.Button($"{customName}: {estateInfo}###{$"Shared Estate {i + 1}".Replace(" ", "_")}");
+                    ImGui.PopStyleColor(4);
+
+                    if (pressed)
+                    {
+                        ExecuteSharedEstateGroup($"Shared Estate {i + 1}", idx);
+                    }
+                }
+                else
+                {
+                    // Secondary Buttons: Soft Gray (#4C566A)
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
+                    ImGui.Button($"{customName}: {estateInfo}###disabled_{$"Shared Estate {i + 1}".Replace(" ", "_")}");
+                    ImGui.PopStyleColor(2);
+                }
+                
+                ImGui.PopStyleVar(2);
+                ImGui.Spacing();
             }
+
+            // Clean separator between estate cards and rename section
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // --- Dedicated section for renaming shared estate titles ---
+            
+            // Headers: Soft Gold (#EBCB8B)
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.922f, 0.796f, 0.545f, 1.0f));
+            ImGui.Text("Rename Shared Estate Titles");
+            ImGui.PopStyleColor();
+            ImGui.Spacing();
+            ImGui.Spacing();
+            
+            // Table with transparent background
+            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Remove table borders
+            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Remove table borders
+            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Clear row background
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Clear alt row background
+            
+            // Table-like layout for rename fields with increased row padding
+            if (ImGui.BeginTable("SharedEstateRename", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.PadOuterX))
+                {
+                    ImGui.TableSetupColumn("Plot", ImGuiTableColumnFlags.WidthFixed, 120.0f);
+                    ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthFixed, 200.0f);
+                    ImGui.TableSetupColumn("Rename", ImGuiTableColumnFlags.WidthFixed, 90.0f);
+                    ImGui.TableSetupColumn("Reset", ImGuiTableColumnFlags.WidthFixed, 80.0f);
+
+                    for (int i = 0; i < estates.Count; i++)
+                    {
+                        int idx = estates[i].index;
+                        string label = $"Shared Plot {i + 1}";
+                        string defaultTitle = label;
+                        
+                        ImGui.TableNextRow();
+                        ImGui.PushID($"shared_estate_rename_table_{idx}");
+                        
+                        // Plot column - Subheaders: Light Gray (#D8DEE9)
+                        ImGui.TableSetColumnIndex(0);
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.847f, 0.871f, 0.914f, 1.0f));
+                        ImGui.AlignTextToFramePadding();
+                        ImGui.Text(label);
+                        ImGui.PopStyleColor();
+                        
+                        // Title input column
+                        ImGui.TableSetColumnIndex(1);
+                        string buffer = renameBuffers.ContainsKey(idx) ? renameBuffers[idx] : "";
+                        ImGui.SetNextItemWidth(-1);
+                        if (ImGui.InputText($"##RenameInput_{idx}", ref buffer, 64))
+                        {
+                            renameBuffers[idx] = buffer;
+                        }
+                        
+                        // Rename button column - Primary Buttons: Desaturated Blue
+                        ImGui.TableSetColumnIndex(2);
+                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.369f, 0.506f, 0.675f, 0.8f));
+                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.506f, 0.631f, 0.757f, 0.9f));
+                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.533f, 0.753f, 0.816f, 1.0f));
+                        if (ImGui.Button("Rename") && ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip("Apply custom name to this shared estate");
+                        }
+                        bool renamePressed = ImGui.IsItemClicked();
+                        ImGui.PopStyleColor(3);
+                        
+                        if (renamePressed)
+                        {
+                            string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
+                                ? sharedEstateNames[idx]
+                                : $"Shared Estate {i + 1}";
+                            string newName = (renameBuffers.ContainsKey(idx) ? renameBuffers[idx] : buffer).Trim();
+                            
+                            sharedEstateNames[idx] = newName;
+                            renameBuffers[idx] = string.Empty;
+                            SaveSharedEstateNames();
+                            
+                            // Update the favorite if it exists
+                            UpdateSharedEstateFavorite(idx, oldName, newName, estates[i].id);
+                        }
+                        
+                        // Reset button column - Secondary Buttons: Soft Gray
+                        ImGui.TableSetColumnIndex(3);
+                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
+                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.424f, 0.478f, 0.573f, 0.9f)); // Hover (#6C7A92)
+                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.524f, 0.578f, 0.673f, 1.0f));
+                        if (ImGui.Button("Reset") && ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip("Reset to default name");
+                        }
+                        bool resetPressed = ImGui.IsItemClicked();
+                        ImGui.PopStyleColor(3);
+                        
+                        if (resetPressed)
+                        {
+                            string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
+                                ? sharedEstateNames[idx]
+                                : $"Shared Estate {i + 1}";
+                                
+                            sharedEstateNames[idx] = defaultTitle;
+                            renameBuffers[idx] = string.Empty;
+                            SaveSharedEstateNames();
+                            
+                            // Update the favorite if it exists
+                            UpdateSharedEstateFavorite(idx, oldName, defaultTitle, estates[i].id);
+                        }
+                        
+                        ImGui.PopID();
+                        
+                        // Add spacing between rows using dummy
+                        if (i < estates.Count - 1)
+                        {
+                            ImGui.TableNextRow();
+                            ImGui.TableSetColumnIndex(0);
+                            ImGui.Dummy(new Vector2(0, 8.0f)); // Vertical spacing
+                        }
+                    }
+                    
+                    ImGui.EndTable();
+                }
+                
+                ImGui.PopStyleColor(4); // Pop the table style colors
+                
+                ImGui.Spacing();
+                ImGui.Spacing();
         }
+        // Local buffer for ImGui input per shared estate index
+        private Dictionary<int, string> renameBuffers = new();
 
         private void DrawDisabledSharedEstateButton()
         {
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.35f, 0.35f, 0.35f, 0.6f));
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
-            ImGui.Button("🏡 Shared Estates (Error)");
+            ImGui.Button("Shared Estates (Error)");
             ImGui.PopStyleColor(2);
         }
 
@@ -245,7 +548,7 @@ namespace ZoneLevelGuide.Modules
                 }
                 else
                 {
-                    return $"Plot {houseId.PlotIndex + 1}, Ward {houseId.WardIndex + 1}";
+                    return $"Plot {houseId.PlotIndex + 1} - Ward {houseId.WardIndex + 1}";
                 }
             }
             catch
@@ -278,14 +581,15 @@ namespace ZoneLevelGuide.Modules
 
         private void DrawSharedEstateButton(string buttonText, string groupName, int estateIndex = -1)
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6)); // Increased padding
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
             
             if (teleporter != null)
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.4f, 0.6f, 0.8f)); // Purple theme for shared estates
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.7f, 0.5f, 0.7f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.6f, 0.8f, 1.0f));
+                // Shared Estates Accent: Lavender (#B48EAD)
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.706f, 0.557f, 0.678f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.806f, 0.657f, 0.778f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.906f, 0.757f, 0.878f, 1.0f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.95f, 0.95f, 1.0f));
 
                 bool pressed = ImGui.Button($"{buttonText}###{groupName.Replace(" ", "_")}");
@@ -298,7 +602,8 @@ namespace ZoneLevelGuide.Modules
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.35f, 0.35f, 0.35f, 0.6f));
+                // Secondary Buttons: Soft Gray (#4C566A)
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
                 ImGui.Button($"{buttonText}###disabled_{groupName.Replace(" ", "_")}");
                 ImGui.PopStyleColor(2);
@@ -428,174 +733,6 @@ namespace ZoneLevelGuide.Modules
             return false;
         }
 
-        private void DrawFavoriteWardSection()
-        {
-            DrawZoneSection("Favorite District", "Any Level",
-                "Set and teleport to your favorite housing district.\n" +
-                "*This will not teleport you to a specific ward, only the district.*",
-                () => {
-                    // Show current favorite if set
-                    if (!string.IsNullOrEmpty(favoriteDistrict))
-                    {
-                        DrawFavoriteWardButton();
-                        ImGui.Spacing();
-                    }
-                    
-                    DrawFavoriteWardSettings();
-                }, Color);
-        }
-
-        private void DrawFavoriteWardButton()
-        {
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
-            
-            // Gold/star theme for favorite
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.7f, 0.2f, 0.8f)); 
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.8f, 0.3f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.9f, 0.4f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.1f, 0.1f, 0.1f, 1.0f)); // Dark text
-
-            string buttonText = $"⭐ {favoriteDistrict}";
-            bool pressed = ImGui.Button($"{buttonText}###favorite_district");
-            ImGui.PopStyleColor(4);
-            ImGui.PopStyleVar(2);
-
-            if (pressed && HousingDistricts.ContainsKey(favoriteDistrict) && teleporter != null)
-            {
-                try
-                {
-                    teleporter.Teleport(HousingDistricts[favoriteDistrict]);
-                }
-                catch (System.Exception)
-                {
-                    // Silently fail if teleport is not available
-                }
-            }
-            
-            ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.2f, 1.0f)); // Gold text
-            ImGui.Text("Favorite District");
-            ImGui.PopStyleColor();
-        }
-
-        private void DrawFavoriteWardSettings()
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-            ImGui.Text("Set Favorite District:");
-            ImGui.PopStyleColor();
-            
-            ImGui.Spacing();
-            
-            // District dropdown
-            ImGui.PushItemWidth(200);
-            if (ImGui.BeginCombo("##district_combo", selectedDistrict))
-            {
-                foreach (var district in HousingDistricts.Keys)
-                {
-                    bool isSelected = selectedDistrict == district;
-                    if (ImGui.Selectable(district, isSelected))
-                    {
-                        selectedDistrict = district;
-                    }
-                    if (isSelected)
-                    {
-                        ImGui.SetItemDefaultFocus();
-                    }
-                }
-                ImGui.EndCombo();
-            }
-            ImGui.PopItemWidth();
-            
-            ImGui.SameLine();
-            
-            // Set Favorite button
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.2f, 0.8f)); // Green
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.8f, 0.3f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.9f, 0.4f, 1.0f));
-            
-            if (ImGui.Button("Set Favorite"))
-            {
-                SetFavoriteWard(selectedDistrict, 0); // Ward is no longer relevant
-            }
-            ImGui.PopStyleColor(3);
-            
-            // Clear favorite button if one is set
-            if (!string.IsNullOrEmpty(favoriteDistrict))
-            {
-                ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.3f, 0.3f, 0.8f)); // Red
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.4f, 0.4f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.9f, 0.5f, 0.5f, 1.0f));
-                
-                if (ImGui.Button("Clear"))
-                {
-                    ClearFavoriteWard();
-                }
-                ImGui.PopStyleColor(3);
-            }
-            
-            ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f)); // Gray
-            ImGui.TextWrapped("Note: This teleports to the main city near the housing district.");
-            ImGui.PopStyleColor();
-        }
-
-        private void SetFavoriteWard(string district, int ward)
-        {
-            favoriteDistrict = district;
-            SaveFavoriteWard();
-        }
-
-        private void ClearFavoriteWard()
-        {
-            favoriteDistrict = "";
-            SaveFavoriteWard();
-        }
-
-        private void SaveFavoriteWard()
-        {
-            try
-            {
-                // For now, we'll use a simple file-based persistence
-                // This ensures the feature works without complex configuration dependencies
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                Directory.CreateDirectory(configPath);
-                
-                string configFile = Path.Combine(configPath, "favorite_ward.txt");
-                File.WriteAllText(configFile, favoriteDistrict);
-            }
-            catch
-            {
-                // If file save fails, we'll just keep it in memory for this session
-                // This is a fallback to prevent crashes
-            }
-        }
-
-        private void LoadFavoriteWard()
-        {
-            try
-            {
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                string configFile = Path.Combine(configPath, "favorite_ward.txt");
-                
-                if (File.Exists(configFile))
-                {
-                    string content = File.ReadAllText(configFile).Trim();
-                    
-                    if (!string.IsNullOrEmpty(content) && HousingDistricts.ContainsKey(content))
-                    {
-                        favoriteDistrict = content;
-                    }
-                }
-            }
-            catch
-            {
-                // If loading fails, start with defaults
-                favoriteDistrict = "";
-            }
-        }
-
         private void DrawTeleportInfoPopup()
         {
             // Show estate command info popup
@@ -614,11 +751,11 @@ namespace ZoneLevelGuide.Modules
                 ImGui.Spacing();
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1.0f)); // Light green
                 ImGui.Text("Multiple Shared Estates:");
-                ImGui.Text("✓ Plugin tries to teleport to specific shared estates!");
-                ImGui.Text("✓ Uses extra-safe Telepo system with crash prevention");
-                ImGui.Text("✓ Falls back to standard '/tp Shared Estate' if direct fails");
-                ImGui.Text("• Direct teleportation may take you to the correct estate");
-                ImGui.Text("• If it fails, you'll get the standard shared estate teleport");
+                ImGui.Text("- Plugin tries to teleport to specific shared estates!");
+                ImGui.Text("- Uses extra-safe Telepo system with crash prevention");
+                ImGui.Text("- Falls back to standard '/tp Shared Estate' if direct fails");
+                ImGui.Text("- Direct teleportation may take you to the correct estate");
+                ImGui.Text("- If it fails, you'll get the standard shared estate teleport");
                 ImGui.PopStyleColor();
                 ImGui.Unindent(10.0f);
                 ImGui.PopStyleColor();
@@ -638,27 +775,55 @@ namespace ZoneLevelGuide.Modules
             ImGui.Separator();
             ImGui.Spacing();
 
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-            ImGui.Text("🏠 Housing Information");
+            // Headers: Soft Gold (#EBCB8B)
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.922f, 0.796f, 0.545f, 1.0f));
+            ImGui.Text("Housing Information");
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
 
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.85f, 0.85f, 0.85f, 1.0f));
+            // Subheaders: Light Gray (#D8DEE9)
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.847f, 0.871f, 0.914f, 1.0f));
             ImGui.TextWrapped("Housing Districts:");
+            ImGui.PopStyleColor();
+            
+            // Description Text: Muted Gray (#B0B0B0)
             ImGui.Indent(10.0f);
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.690f, 0.690f, 0.690f, 1.0f));
             ImGui.Text("The Mist (Limsa)");
             ImGui.Text("Lavender Beds (Gridania)");
             ImGui.Text("The Goblet (Ul'dah)");
             ImGui.Text("Shirogane (Kugane)");
             ImGui.Text("Empyreum (Ishgard)");
-            ImGui.Unindent(10.0f);
             ImGui.PopStyleColor();
+            ImGui.Unindent(10.0f);
 
             ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.9f, 0.9f, 1.0f)); // Light cyan
-            ImGui.TextWrapped("• Estate teleportation requires ownership or access.\n• Shared estate buttons teleport directly to each available shared estate.");
+            // Description Text: Muted Gray (#B0B0B0)
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.690f, 0.690f, 0.690f, 1.0f));
+            ImGui.TextWrapped("- Estate teleportation requires ownership or access.\n- Shared estate buttons teleport directly to each available shared estate.");
             ImGui.PopStyleColor();
+        }
+
+        private void UpdateSharedEstateFavorite(int estateIndex, string oldName, string newName, HouseId houseId)
+        {
+            if (FavoritesManager == null) return;
+            
+            // Generate the old and new favorite keys
+            string estateInfo = GetEstateDisplayName(houseId);
+            string oldKey = $"Shared:{oldName}:{estateInfo}";
+            string newKey = $"Shared:{newName}:{estateInfo}";
+            
+            // Check if the old favorite exists
+            if (FavoritesManager.IsFavorite(oldKey))
+            {
+                // Remove the old favorite and add the new one
+                FavoritesManager.RemoveFavorite(oldKey);
+                
+                // Add the new favorite with the updated name
+                uint specialId = (uint)(10000 + estateIndex);
+                FavoritesManager.AddFavorite(newKey, $"{newName}: {estateInfo}", ZoneName, $"SharedEstate_{estateIndex}", specialId, new Vector4(0.369f, 0.506f, 0.675f, 1.0f));
+            }
         }
     }
 }

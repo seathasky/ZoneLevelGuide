@@ -17,26 +17,26 @@ namespace ZoneLevelGuide.Modules
             
             DrawZoneSection("New Gridania & Old Gridania", "1-15", 
                 "Starting area for Conjurers, Archers, and Lancers. City of nature and the elementals.",
-                () => DrawTeleportButton("New Gridania", 2), Color);
+                () => DrawTeleportButtonWithStar("New Gridania", 2, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f)), Color);
             
             DrawZoneSection("Central Shroud", "5-15",
                 "Peaceful woodland area with the Bentbranch Meadows settlement.",
-                () => DrawTeleportButton("Bentbranch Meadows", 3), Color);
+                () => DrawTeleportButtonWithStar("Bentbranch Meadows", 3, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f)), Color);
             
             DrawZoneSection("East Shroud", "15-25",
                 "Dense forest region home to sylphs and various woodland creatures.",
-                () => DrawTeleportButton("The Hawthorne Hut", 4), Color);
+                () => DrawTeleportButtonWithStar("The Hawthorne Hut", 4, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f)), Color);
             
             DrawZoneSection("South Shroud", "20-30",
                 "Southern forest area featuring the mining town of Quarrymill.",
-                () => DrawTeleportButton("Quarrymill", 5), Color);
+                () => DrawTeleportButtonWithStar("Quarrymill", 5, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f)), Color);
             
             DrawZoneSection("North Shroud", "15-30",
                 "Northern reaches of the Black Shroud with diverse settlements.",
                 () => {
-                    DrawTeleportButton("Camp Tranquil", 6);
+                    DrawTeleportButtonWithStar("Camp Tranquil", 6, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
                     ImGui.SameLine();
-                    DrawTeleportButton("Fallgourd Float", 7);
+                    DrawTeleportButtonWithStar("Fallgourd Float", 7, ZoneName, new Vector4(0.35f, 0.38f, 0.42f, 0.8f));
                 }, Color);
         }
     }

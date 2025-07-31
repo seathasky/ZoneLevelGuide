@@ -4,7 +4,7 @@
     "Name": "Zone Level Guide",
     "Description": "Shows level ranges in zones.",
     "InternalName": "ZoneLevelGuide",
-    "AssemblyVersion": "1.0.0.10",
+    "AssemblyVersion": "2.0.0.0",
     "DalamudApiLevel": 12,
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Seathasky/ZoneLevelGuide",
