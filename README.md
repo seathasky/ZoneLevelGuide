@@ -26,6 +26,7 @@ https://raw.githubusercontent.com/seathasky/ZoneLevelGuide/main/repo.json
 ## Features
 - Shows level ranges for all zones from ARR to Dawntrail
 - Organized by expansion
+- Favorites tab allows you to save and quickly access zones you visit frequently.
 - Color coded for easy reading
 - Teleport buttons. Requires Teleporter plugin which can be downloaded from Dalamud plugin installer.
 
