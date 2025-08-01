@@ -2,7 +2,7 @@
   {
     "Author": "Seathasky (XIV on Mac Team)",
     "Name": "Zone Level Guide",
-    "Description": "Shows level ranges in zones.",
+    "Description": "Shows level ranges in zones and teleport replacement.",
     "InternalName": "ZoneLevelGuide",
     "AssemblyVersion": "2.0.0.1",
     "DalamudApiLevel": 12,
