@@ -34,6 +34,40 @@ namespace ZoneLevelGuide.Modules
             LoadSharedEstateNames();
         }
         
+        // Static method for favorites module to use the same shared estate teleportation logic
+        public static void ExecuteSharedEstateTeleportForFavorites(ITeleporterIpc? teleporter, int estateIndex)
+        {
+            var teleporterService = teleporter as TeleporterService;
+            if (teleporterService == null) return;
+
+            try
+            {
+                // Try specific estate teleport first if we have a valid index
+                if (estateIndex >= 0)
+                {
+                    // Create a temporary instance to access the private method
+                    var tempInstance = new HousingModule(teleporter);
+                    tempInstance.ExecuteSharedEstateGroup($"Shared Estate {estateIndex + 1}", estateIndex);
+                }
+                else
+                {
+                    teleporterService.ExecuteEstateCommand("Shared Estate");
+                }
+            }
+            catch
+            {
+                // Final fallback
+                try
+                {
+                    teleporterService.ExecuteEstateCommand("Shared Estate");
+                }
+                catch
+                {
+                    // Silent fail
+                }
+            }
+        }
+        
         private void SaveSharedEstateNames()
         {
             try
@@ -612,7 +646,7 @@ namespace ZoneLevelGuide.Modules
             ImGui.PopStyleVar(2);
         }
 
-        private void ExecuteSharedEstateGroup(string groupName, int estateIndex = -1)
+        public void ExecuteSharedEstateGroup(string groupName, int estateIndex = -1)
         {
             var teleporterService = teleporter as TeleporterService;
             if (teleporterService == null)
