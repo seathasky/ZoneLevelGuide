@@ -1,4 +1,4 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System;
 using System.Numerics;
 
@@ -8,7 +8,6 @@ namespace ZoneLevelGuide.Modules
     {
         protected readonly ITeleporterIpc? teleporter;
         
-        // Static reference to favorites module for star functionality
         public static FavoritesModule? FavoritesManager { get; set; }
 
         public abstract string ZoneName { get; }
@@ -32,14 +31,12 @@ namespace ZoneLevelGuide.Modules
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
             
-            // Create unique ID for this teleport
             string teleportId = $"{zoneName}_{aetheryteId}_{locationName}";
             bool isFavorite = FavoritesManager?.IsFavorite(teleportId) ?? false;
             
-            // Draw star button first
             ImGui.PushStyleColor(ImGuiCol.Text, isFavorite ? 
-                new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : // Golden when favorited
-                new Vector4(0.5f, 0.5f, 0.5f, 1.0f)); // Gray when not favorited
+                new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : 
+                new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
             
             if (ImGui.Button($"★##star_{teleportId}"))
             {
@@ -64,7 +61,6 @@ namespace ZoneLevelGuide.Modules
             
             ImGui.SameLine();
             
-            // Draw main teleport button
             if (teleporter != null)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
@@ -93,7 +89,6 @@ namespace ZoneLevelGuide.Modules
                     }
                     catch (System.Exception)
                     {
-                        // Silently fail if teleport is not available
                     }
                 }
             }

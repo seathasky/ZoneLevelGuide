@@ -1,29 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/12.0.2">
+<Project Sdk="Dalamud.NET.Sdk/13.0.0">
   <PropertyGroup>
     <Authors>Seathasky</Authors>
-    <Version>2.0.0.1</Version>
+    <Version>2.0.0.2</Version>
     <Description>Shows level ranges for all zones in FFXIV</Description>
     <PackageProjectUrl>https://github.com/Seathasky/ZoneLevelGuide</PackageProjectUrl>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Platforms>x64</Platforms>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <NoWarn>CA1416</NoWarn>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-  </PropertyGroup>
-  <PropertyGroup>
-    <DalamudLibPath Condition=" '$(OS)' == 'Unix' ">$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/</DalamudLibPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,4 +14,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
 </Project>

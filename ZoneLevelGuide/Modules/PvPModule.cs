@@ -1,4 +1,4 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 
 namespace ZoneLevelGuide.Modules
@@ -7,7 +7,7 @@ namespace ZoneLevelGuide.Modules
     {
         public override string ZoneName => "PvP";
         public override string LevelRange => "Level 30+";
-        public override Vector4 Color => new Vector4(0.9f, 0.4f, 0.4f, 1.0f); // Red theme for PvP
+        public override Vector4 Color => new Vector4(0.9f, 0.4f, 0.4f, 1.0f);
 
         public PvPModule(ITeleporterIpc? teleporter) : base(teleporter) { }
 
@@ -20,7 +20,7 @@ namespace ZoneLevelGuide.Modules
                 () => {
                     DrawPvPTeleportButton("Wolves' Den Pier", 55);
                     ImGui.Spacing();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.8f, 1.0f)); // Light red
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.8f, 1.0f));
                     ImGui.TextWrapped("Central hub for all PvP activities:");
                     ImGui.Indent(10.0f);
                     ImGui.Text("- Access PvP modes and queues");
@@ -36,7 +36,6 @@ namespace ZoneLevelGuide.Modules
 
         private void DrawPvPTeleportButton(string locationName, uint aetheryteId)
         {
-            // Use the standard star button functionality from BaseZoneModule
             DrawTeleportButtonWithStar(locationName, aetheryteId, ZoneName, new Vector4(0.7f, 0.2f, 0.2f, 0.8f));
         }
 
@@ -80,7 +79,7 @@ namespace ZoneLevelGuide.Modules
             ImGui.Unindent(10.0f);
             
             ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.7f, 1.0f)); // Light red
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.7f, 1.0f));
             ImGui.TextWrapped("Note: PvP uses a separate progression system with PvP ranks, " +
                             "Series Malmstones, and unique rewards. All jobs are viable in PvP!");
             ImGui.PopStyleColor();

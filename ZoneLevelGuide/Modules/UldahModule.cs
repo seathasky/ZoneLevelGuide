@@ -1,11 +1,11 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 
 namespace ZoneLevelGuide.Modules
 {
     public class UldahModule : BaseZoneModule
     {
-        public override string ZoneName => "Ul'dah";
+        public override string ZoneName => "Thanalan";
         public override string LevelRange => "1-50";
         public override Vector4 Color => new Vector4(1.0f, 0.8f, 0.4f, 1.0f);
 

@@ -1,6 +1,7 @@
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using Dalamud.Interface.Utility;
 using System;
@@ -40,9 +41,9 @@ namespace ZoneLevelGuide
 
         private readonly (string name, string levels, Vector4 color)[] tabInfo = {
             ("★ Favorites", "Quick Access", new Vector4(1.0f, 0.8f, 0.2f, 1.0f)),
-            ("Gridania", "1-30", new Vector4(0.4f, 0.8f, 0.4f, 1.0f)),
-            ("Limsa Lominsa", "1-50", new Vector4(0.4f, 0.7f, 1.0f, 1.0f)),
-            ("Ul'dah", "1-50", new Vector4(1.0f, 0.8f, 0.4f, 1.0f)),
+            ("Black Shroud", "1-30", new Vector4(0.4f, 0.8f, 0.4f, 1.0f)),
+            ("La Noscea", "1-50", new Vector4(0.4f, 0.7f, 1.0f, 1.0f)),
+            ("Thanalan", "1-50", new Vector4(1.0f, 0.8f, 0.4f, 1.0f)),
             ("Mor Dhona", "45-50", new Vector4(0.8f, 0.6f, 0.9f, 1.0f)),
             ("Coerthas", "35-53", new Vector4(0.9f, 0.9f, 1.0f, 1.0f)),
             ("Ishgard", "50-60", new Vector4(1.0f, 0.6f, 0.8f, 1.0f)),
@@ -54,14 +55,14 @@ namespace ZoneLevelGuide
             ("PvP", "Level 30+", new Vector4(0.9f, 0.4f, 0.4f, 1.0f))
         };
 
-        public ZoneLevelWindow(ITeleporterIpc? teleporter = null) : base(
+        public ZoneLevelWindow(ITeleporterIpc? teleporter = null, Configuration? configuration = null) : base(
             "Zone Level Guide",
             ImGuiWindowFlags.NoCollapse)
         {
             this.teleporter = teleporter;
 
             // Initialize zone modules
-            var favoritesModule = new FavoritesModule(teleporter);
+            var favoritesModule = new FavoritesModule(teleporter, configuration);
             BaseZoneModule.FavoritesManager = favoritesModule;
             
             zoneModules = new IZoneModule[]
@@ -77,7 +78,7 @@ namespace ZoneLevelGuide
                 new NorvrandtModule(teleporter),
                 new IlsabardModule(teleporter),
                 new TuralModule(teleporter),
-                new HousingModule(teleporter),
+                new HousingModule(teleporter, configuration),
                 new PvPModule(teleporter)
             };
 

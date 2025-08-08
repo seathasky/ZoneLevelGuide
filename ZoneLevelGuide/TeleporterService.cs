@@ -25,7 +25,6 @@ namespace ZoneLevelGuide
         private IClientState? clientState;
         private bool isAutoDiscoveryRunning = false;
 
-        // Display names with aetheryte IDs
         private readonly Dictionary<uint, string> aetheryteDisplayNames = new()
         {
             // === A Realm Reborn (ARR) Aetherytes - IDs 2-24 ===
@@ -154,14 +153,13 @@ namespace ZoneLevelGuide
             { 238, "Dock Poga" }
         };
 
-        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, ISigScanner sigScanner, IGameInteropProvider gameInterop, IClientState? clientState = null)
+        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, IClientState? clientState = null)
         {
             this.chatGui = chatGui;
             this.pluginInterface = pluginInterface;
             this.commandManager = commandManager;
             this.clientState = clientState;
             
-            // Subscribe to TeleporterPlugin IPC
             try
             {
                 this.teleportSubscriber = pluginInterface.GetIpcSubscriber<uint, byte, bool>("Teleport");
@@ -178,7 +176,6 @@ namespace ZoneLevelGuide
             {
                 if (aetheryteDisplayNames.TryGetValue(aetheryteId, out var displayName))
                 {
-                    // Rate limiting
                     if ((DateTime.Now - lastTeleport).TotalSeconds < 3)
                     {
                         chatGui?.PrintError("Wait a moment before teleporting again.");
@@ -209,18 +206,15 @@ namespace ZoneLevelGuide
         {
             try
             {
-                // Rate limiting
                 if ((DateTime.Now - lastTeleport).TotalSeconds < 3)
                 {
                     chatGui?.PrintError("Wait a moment before teleporting again.");
                     return;
                 }
 
-                // Execute the /tp command with the estate name
                 string command = $"/tp {estateName}";
                 chatGui?.Print($"Executing: {command}");
                 
-                // This is safe - it uses Dalamud's command processing system
                 commandManager.ProcessCommand(command);
                 lastTeleport = DateTime.Now;
             }
@@ -260,7 +254,6 @@ namespace ZoneLevelGuide
             }
         }
 
-        // Call this to start automated discovery
         public async Task StartAutoDiscovery(uint startId = 0, uint endId = 999, int delaySeconds = 10, string logPath = "AetheryteDiscoveryLog.txt")
         {
             if (isAutoDiscoveryRunning)
@@ -271,7 +264,6 @@ namespace ZoneLevelGuide
             isAutoDiscoveryRunning = true;
             chatGui?.Print($"Starting auto-discovery from ID {startId} to {endId}...");
 
-            // Ensure log file is in plugin config directory
             string configDir = pluginInterface.GetPluginConfigDirectory();
             if (!Directory.Exists(configDir))
                 Directory.CreateDirectory(configDir);
@@ -297,10 +289,8 @@ namespace ZoneLevelGuide
                     error = ex.Message;
                 }
 
-                // Wait for teleport to finish and player to load
                 await Task.Delay(delaySeconds * 1000);
 
-                // Try to get current territory and coordinates
                 if (clientState != null && clientState.LocalPlayer != null)
                 {
                     territory = clientState.TerritoryType.ToString();
@@ -318,7 +308,6 @@ namespace ZoneLevelGuide
             chatGui?.Print($"Auto-discovery finished or stopped. Log: {fullLogPath}");
         }
 
-        // Call this to stop the automated discovery
         public void StopAutoDiscovery()
         {
             isAutoDiscoveryRunning = false;
@@ -327,10 +316,8 @@ namespace ZoneLevelGuide
 
         public void Dispose()
         {
-            // Stop any running auto-discovery
             StopAutoDiscovery();
             
-            // Clean up IPC subscription
             teleportSubscriber = null;
         }
     }

@@ -1,12 +1,12 @@
 {
   "Author": "Seathasky (XIV on Mac Team)",
   "Name": "Zone Level Guide",
-  "Description": "Shows level ranges in zones",
+  "Description": "Displays level ranges for all FFXIV zones and provides one-click teleport support when used with the Teleporter plugin.",
   "Punchline": "Never wonder 'What level is this zone?' again!",
   "InternalName": "ZoneLevelGuide",
-  "AssemblyVersion": "2.0.0.1",
+  "LoadIcon": "Images/icon.png",
   "Tags": [ "UI", "Leveling", "Zone" ],
   "RepoUrl": "https://github.com/seathasky/ZoneLevelGuide",
   "ApplicableVersion": "any",
-  "DalamudApiLevel": 12
+  "DalamudApiLevel": 13
 }

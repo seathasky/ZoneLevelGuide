@@ -1,11 +1,11 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 
 namespace ZoneLevelGuide.Modules
 {
     public class LimsaModule : BaseZoneModule
     {
-        public override string ZoneName => "Limsa Lominsa";
+        public override string ZoneName => "La Noscea";
         public override string LevelRange => "1-50";
         public override Vector4 Color => new Vector4(0.4f, 0.7f, 1.0f, 1.0f);
 

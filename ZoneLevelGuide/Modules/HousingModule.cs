@@ -1,8 +1,7 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
@@ -14,27 +13,19 @@ namespace ZoneLevelGuide.Modules
         private const int MAX_TELEPORT_ENTRIES = 50;
         private const int MAX_AETHERYTE_ID = 10000;
         
-        private static readonly Dictionary<string, uint> HousingDistricts = new()
-        {
-            { "The Mist", 8 },
-            { "Lavender Beds", 2 },
-            { "The Goblet", 9 },
-            { "Shirogane", 111 },
-            { "Empyreum", 70 }
-        };
-        
         public override string ZoneName => "Housing";
         public override string LevelRange => "Any Level";
         public override Vector4 Color => new Vector4(0.8f, 0.6f, 0.4f, 1.0f);
 
-        private Dictionary<int, string> sharedEstateNames = new();
+        private readonly Configuration? configuration;
 
-        public HousingModule(ITeleporterIpc? teleporter) : base(teleporter) 
+        public HousingModule(ITeleporterIpc? teleporter, Configuration? configuration) : base(teleporter) 
         {
-            LoadSharedEstateNames();
+            this.configuration = configuration;
         }
         
-        // Static method for favorites module to use the same shared estate teleportation logic
+        private Dictionary<int, string> SharedEstateNames => configuration?.SharedEstateNames ?? new Dictionary<int, string>();
+        
         public static void ExecuteSharedEstateTeleportForFavorites(ITeleporterIpc? teleporter, int estateIndex)
         {
             var teleporterService = teleporter as TeleporterService;
@@ -42,11 +33,9 @@ namespace ZoneLevelGuide.Modules
 
             try
             {
-                // Try specific estate teleport first if we have a valid index
                 if (estateIndex >= 0)
                 {
-                    // Create a temporary instance to access the private method
-                    var tempInstance = new HousingModule(teleporter);
+                    var tempInstance = new HousingModule(teleporter, null);
                     tempInstance.ExecuteSharedEstateGroup($"Shared Estate {estateIndex + 1}", estateIndex);
                 }
                 else
@@ -56,56 +45,19 @@ namespace ZoneLevelGuide.Modules
             }
             catch
             {
-                // Final fallback
                 try
                 {
                     teleporterService.ExecuteEstateCommand("Shared Estate");
                 }
                 catch
                 {
-                    // Silent fail
                 }
             }
         }
         
         private void SaveSharedEstateNames()
         {
-            try
-            {
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                Directory.CreateDirectory(configPath);
-                string configFile = Path.Combine(configPath, "shared_estate_names.txt");
-                using (var writer = new StreamWriter(configFile, false))
-                {
-                    foreach (var kvp in sharedEstateNames)
-                    {
-                        writer.WriteLine($"{kvp.Key}:{kvp.Value.Replace("\n", " ").Replace("\r", " ")}");
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private void LoadSharedEstateNames()
-        {
-            sharedEstateNames.Clear();
-            try
-            {
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                string configFile = Path.Combine(configPath, "shared_estate_names.txt");
-                if (File.Exists(configFile))
-                {
-                    foreach (var line in File.ReadAllLines(configFile))
-                    {
-                        var parts = line.Split(new[] { ':' }, 2);
-                        if (parts.Length == 2 && int.TryParse(parts[0], out int idx))
-                        {
-                            sharedEstateNames[idx] = parts[1];
-                        }
-                    }
-                }
-            }
-            catch { }
+            configuration?.Save();
         }
 
         public override void DrawContent()
@@ -280,13 +232,11 @@ namespace ZoneLevelGuide.Modules
                 }
                 else
                 {
-                    // Fallback: single shared estate button
                     DrawSharedEstateButton("Shared Estate", "Shared Estate", -1);
                 }
             }
             catch
             {
-                // Ultimate fallback: disabled button
                 DrawDisabledSharedEstateButton();
             }
         }
@@ -321,11 +271,9 @@ namespace ZoneLevelGuide.Modules
                 var estate = HousingManager.GetOwnedHouseId(EstateType.SharedEstate, index);
                 houseId = estate;
 
-                // Validate ID first
                 if (estate.Id == 0)
                     return false;
 
-                // Additional sanity checks to avoid garbage data
                 if (estate.WardIndex < 0 || estate.WardIndex > 60)
                     return false;
 
@@ -342,7 +290,6 @@ namespace ZoneLevelGuide.Modules
 
         private void DrawAvailableSharedEstates(bool hasEstate0, bool hasEstate1)
         {
-            // Collect only estates that actually exist
             var estates = new List<(int index, HouseId id)>();
 
             if (hasEstate0 && TryGetSharedEstate(0, out var estate0))
@@ -351,35 +298,29 @@ namespace ZoneLevelGuide.Modules
             if (hasEstate1 && TryGetSharedEstate(1, out var estate1))
                 estates.Add((1, estate1));
 
-            // If no valid estates, draw a generic fallback button
             if (estates.Count == 0)
             {
                 DrawSharedEstateButton("Shared Estate", "Shared Estate", -1);
                 return;
             }
 
-            // Draw a button for each detected shared estate, with custom name UI
-            // Draw all shared estate buttons with their custom titles
             for (int i = 0; i < estates.Count; i++)
             {
                 int idx = estates[i].index;
                 string estateInfo = GetEstateDisplayName(estates[i].id);
-                string customName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                    ? sharedEstateNames[idx]
+                string customName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                    ? SharedEstateNames[idx]
                     : $"Shared Estate {i + 1}";
 
-                // Draw the star and button with consistent styling
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
                 ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
                 
-                // Check if this shared estate is favorited
                 string sharedEstateKey = $"Shared:{customName}:{estateInfo}";
                 bool isFavorited = FavoritesManager?.IsFavorite(sharedEstateKey) ?? false;
                 
-                // Draw star button first (consistent with other modules)
                 ImGui.PushStyleColor(ImGuiCol.Text, isFavorited ? 
-                    new Vector4(1.0f, 0.8f, 0.2f, 1.0f) : // Golden when favorited
-                    new Vector4(0.5f, 0.5f, 0.5f, 1.0f)); // Gray when not favorited
+                    new Vector4(1.0f, 0.8f, 0.2f, 1.0f) :
+                    new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
                 
                 if (ImGui.Button($"★##star_shared_{idx}"))
                 {
@@ -391,8 +332,7 @@ namespace ZoneLevelGuide.Modules
                         }
                         else
                         {
-                            // Store the estate index in the aetheryte ID field for shared estates (use special range)
-                            uint specialId = (uint)(10000 + idx); // Use ID range 10000+ for shared estates
+                            uint specialId = (uint)(10000 + idx);
                             FavoritesManager.AddFavorite(sharedEstateKey, $"{customName}: {estateInfo}", ZoneName, $"SharedEstate_{idx}", specialId, new Vector4(0.369f, 0.506f, 0.675f, 1.0f));
                         }
                     }
@@ -406,14 +346,12 @@ namespace ZoneLevelGuide.Modules
                 
                 ImGui.SameLine();
                 
-                // Main shared estate button
                 if (teleporter != null)
                 {
-                    // Plot Button BG: Blue (#5E81AC) with hover states
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.369f, 0.506f, 0.675f, 1.0f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.506f, 0.631f, 0.757f, 1.0f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.533f, 0.753f, 0.816f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.925f, 0.937f, 0.957f, 1.0f)); // Plot Button Text: Off-white (#ECEFF4)
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.925f, 0.937f, 0.957f, 1.0f));
 
                     bool pressed = ImGui.Button($"{customName}: {estateInfo}###{$"Shared Estate {i + 1}".Replace(" ", "_")}");
                     ImGui.PopStyleColor(4);
@@ -425,7 +363,6 @@ namespace ZoneLevelGuide.Modules
                 }
                 else
                 {
-                    // Secondary Buttons: Soft Gray (#4C566A)
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.75f, 0.75f, 0.75f, 0.8f));
                     ImGui.Button($"{customName}: {estateInfo}###disabled_{$"Shared Estate {i + 1}".Replace(" ", "_")}");
@@ -436,27 +373,22 @@ namespace ZoneLevelGuide.Modules
                 ImGui.Spacing();
             }
 
-            // Clean separator between estate cards and rename section
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
-            // --- Dedicated section for renaming shared estate titles ---
             
-            // Headers: Soft Gold (#EBCB8B)
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.922f, 0.796f, 0.545f, 1.0f));
             ImGui.Text("Rename Shared Estate Titles");
             ImGui.PopStyleColor();
             ImGui.Spacing();
             ImGui.Spacing();
             
-            // Table with transparent background
-            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Remove table borders
-            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Remove table borders
-            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Clear row background
-            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.0f, 0.0f, 0.0f, 0.0f)); // Clear alt row background
+            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.0f, 0.0f, 0.0f, 0.0f));
             
-            // Table-like layout for rename fields with increased row padding
             if (ImGui.BeginTable("SharedEstateRename", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.PadOuterX))
                 {
                     ImGui.TableSetupColumn("Plot", ImGuiTableColumnFlags.WidthFixed, 120.0f);
@@ -473,23 +405,28 @@ namespace ZoneLevelGuide.Modules
                         ImGui.TableNextRow();
                         ImGui.PushID($"shared_estate_rename_table_{idx}");
                         
-                        // Plot column - Subheaders: Light Gray (#D8DEE9)
                         ImGui.TableSetColumnIndex(0);
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.847f, 0.871f, 0.914f, 1.0f));
                         ImGui.AlignTextToFramePadding();
                         ImGui.Text(label);
                         ImGui.PopStyleColor();
                         
-                        // Title input column
                         ImGui.TableSetColumnIndex(1);
-                        string buffer = renameBuffers.ContainsKey(idx) ? renameBuffers[idx] : "";
+                        
+                        if (!renameBuffers.ContainsKey(idx))
+                        {
+                            renameBuffers[idx] = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                ? SharedEstateNames[idx]
+                                : $"Shared Estate {i + 1}";
+                        }
+                        
+                        string buffer = renameBuffers[idx];
                         ImGui.SetNextItemWidth(-1);
                         if (ImGui.InputText($"##RenameInput_{idx}", ref buffer, 64))
                         {
                             renameBuffers[idx] = buffer;
                         }
                         
-                        // Rename button column - Primary Buttons: Desaturated Blue
                         ImGui.TableSetColumnIndex(2);
                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.369f, 0.506f, 0.675f, 0.8f));
                         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.506f, 0.631f, 0.757f, 0.9f));
@@ -503,20 +440,24 @@ namespace ZoneLevelGuide.Modules
                         
                         if (renamePressed)
                         {
-                            string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                                ? sharedEstateNames[idx]
-                                : $"Shared Estate {i + 1}";
-                            string newName = (renameBuffers.ContainsKey(idx) ? renameBuffers[idx] : buffer).Trim();
+                            string newName = !string.IsNullOrWhiteSpace(renameBuffers[idx]) ? renameBuffers[idx].Trim() : $"Shared Estate {i + 1}";
                             
-                            sharedEstateNames[idx] = newName;
-                            renameBuffers[idx] = string.Empty;
-                            SaveSharedEstateNames();
-                            
-                            // Update the favorite if it exists
-                            UpdateSharedEstateFavorite(idx, oldName, newName, estates[i].id);
+                            if (!string.IsNullOrWhiteSpace(newName))
+                            {
+                                string oldName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                    ? SharedEstateNames[idx]
+                                    : $"Shared Estate {i + 1}";
+                                    
+                                // Force update the configuration directly
+                                SharedEstateNames[idx] = newName;
+                                renameBuffers.Remove(idx); // Clear the buffer completely so it reinitializes with new name
+                                SaveSharedEstateNames();
+                                
+                                // Update the favorite if it exists
+                                UpdateSharedEstateFavorite(idx, oldName, newName, estates[i].id);
+                            }
                         }
                         
-                        // Reset button column - Secondary Buttons: Soft Gray
                         ImGui.TableSetColumnIndex(3);
                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.298f, 0.337f, 0.416f, 0.8f));
                         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.424f, 0.478f, 0.573f, 0.9f)); // Hover (#6C7A92)
@@ -530,11 +471,11 @@ namespace ZoneLevelGuide.Modules
                         
                         if (resetPressed)
                         {
-                            string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                                ? sharedEstateNames[idx]
+                            string oldName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                ? SharedEstateNames[idx]
                                 : $"Shared Estate {i + 1}";
                                 
-                            sharedEstateNames[idx] = defaultTitle;
+                            SharedEstateNames[idx] = defaultTitle;
                             renameBuffers[idx] = string.Empty;
                             SaveSharedEstateNames();
                             
@@ -544,7 +485,6 @@ namespace ZoneLevelGuide.Modules
                         
                         ImGui.PopID();
                         
-                        // Add spacing between rows using dummy
                         if (i < estates.Count - 1)
                         {
                             ImGui.TableNextRow();
@@ -556,12 +496,11 @@ namespace ZoneLevelGuide.Modules
                     ImGui.EndTable();
                 }
                 
-                ImGui.PopStyleColor(4); // Pop the table style colors
+                ImGui.PopStyleColor(4);
                 
                 ImGui.Spacing();
                 ImGui.Spacing();
         }
-        // Local buffer for ImGui input per shared estate index
         private Dictionary<int, string> renameBuffers = new();
 
         private void DrawDisabledSharedEstateButton()

@@ -1,24 +1,27 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 
 namespace ZoneLevelGuide.Modules
 {
     public class FavoritesModule : BaseZoneModule
     {
-        // Storage for favorite teleports
         private Dictionary<string, FavoriteTeleport> favoriteTeleports = new();
+        private readonly Configuration? configuration;
         
         public override string ZoneName => "Favorites";
         public override string LevelRange => "Quick Access";
-        public override Vector4 Color => new Vector4(1.0f, 0.8f, 0.2f, 1.0f); // Golden yellow for favorites
+        public override Vector4 Color => new Vector4(1.0f, 0.8f, 0.2f, 1.0f);
 
-        public FavoritesModule(ITeleporterIpc? teleporter) : base(teleporter) 
+        public FavoritesModule(ITeleporterIpc? teleporter, Configuration? configuration = null) : base(teleporter) 
         {
-            LoadFavorites();
+            this.configuration = configuration;
+            if (configuration != null)
+            {
+                LoadFavoritesFromConfiguration();
+            }
         }
 
         public struct FavoriteTeleport
@@ -32,74 +35,48 @@ namespace ZoneLevelGuide.Modules
             public int Order { get; set; }
         }
 
-        private void SaveFavorites()
-        {
-            try
-            {
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                Directory.CreateDirectory(configPath);
-                string configFile = Path.Combine(configPath, "favorites.txt");
-                
-                using (var writer = new StreamWriter(configFile, false))
-                {
-                    foreach (var kvp in favoriteTeleports)
-                    {
-                        var fav = kvp.Value;
-                        writer.WriteLine($"{kvp.Key}|{fav.Name}|{fav.Zone}|{fav.Command}|{fav.AetheryteId}|{fav.ButtonColor.X},{fav.ButtonColor.Y},{fav.ButtonColor.Z},{fav.ButtonColor.W}|{fav.AddedDate:yyyy-MM-dd HH:mm:ss}|{fav.Order}");
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private void LoadFavorites()
+        private void LoadFavoritesFromConfiguration()
         {
             favoriteTeleports.Clear();
-            try
-            {
-                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZoneLevelGuide");
-                string configFile = Path.Combine(configPath, "favorites.txt");
-                
-                if (File.Exists(configFile))
-                {
-                    foreach (var line in File.ReadAllLines(configFile))
-                    {
-                        var parts = line.Split('|');
-                        if (parts.Length >= 7)
-                        {
-                            var colorParts = parts[5].Split(',');
-                            if (colorParts.Length == 4 && 
-                                float.TryParse(colorParts[0], out float r) &&
-                                float.TryParse(colorParts[1], out float g) &&
-                                float.TryParse(colorParts[2], out float b) &&
-                                float.TryParse(colorParts[3], out float a) &&
-                                uint.TryParse(parts[4], out uint aetheryteId) &&
-                                DateTime.TryParse(parts[6], out DateTime addedDate))
-                            {
-                                int order = 0;
-                                if (parts.Length >= 8 && int.TryParse(parts[7], out int parsedOrder))
-                                {
-                                    order = parsedOrder;
-                                }
-                                
-                                favoriteTeleports[parts[0]] = new FavoriteTeleport
-                                {
-                                    Name = parts[1],
-                                    Zone = parts[2],
-                                    Command = parts[3],
-                                    AetheryteId = aetheryteId,
-                                    ButtonColor = new Vector4(r, g, b, a),
-                                    AddedDate = addedDate,
-                                    Order = order
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-            catch { }
+            if (configuration?.FavoriteTeleports == null) return;
             
-            // Ensure all favorites have proper order values
+            foreach (var kvp in configuration.FavoriteTeleports)
+            {
+                var data = kvp.Value;
+                favoriteTeleports[kvp.Key] = new FavoriteTeleport
+                {
+                    Name = data.Name,
+                    Zone = data.Zone,
+                    Command = data.Command,
+                    AetheryteId = data.AetheryteId,
+                    ButtonColor = data.ButtonColor,
+                    AddedDate = data.AddedDate,
+                    Order = data.Order
+                };
+            }
+        }
+
+        private void SaveFavorites()
+        {
+            if (configuration == null) return;
+            
+            configuration.FavoriteTeleports.Clear();
+            foreach (var kvp in favoriteTeleports)
+            {
+                var fav = kvp.Value;
+                configuration.FavoriteTeleports[kvp.Key] = new FavoriteTeleportData
+                {
+                    Name = fav.Name,
+                    Zone = fav.Zone,
+                    Command = fav.Command,
+                    AetheryteId = fav.AetheryteId,
+                    ButtonColor = fav.ButtonColor,
+                    AddedDate = fav.AddedDate,
+                    Order = fav.Order
+                };
+            }
+            configuration.Save();
+            
             ReassignOrderValues();
         }
         
@@ -107,14 +84,12 @@ namespace ZoneLevelGuide.Modules
         {
             var favorites = favoriteTeleports.ToList();
             
-            // Sort by existing order, then by added date for items without order
             favorites.Sort((a, b) => {
                 if (a.Value.Order != b.Value.Order)
                     return a.Value.Order.CompareTo(b.Value.Order);
                 return b.Value.AddedDate.CompareTo(a.Value.AddedDate);
             });
             
-            // Reassign sequential order values
             for (int i = 0; i < favorites.Count; i++)
             {
                 var key = favorites[i].Key;
@@ -200,7 +175,7 @@ namespace ZoneLevelGuide.Modules
 
         private static string? highlightedItemId = null;
         private static DateTime highlightStartTime = DateTime.MinValue;
-        private const double HIGHLIGHT_DURATION_MS = 500; // Half second highlight
+    private const double HIGHLIGHT_DURATION_MS = 500;
         
         private void DrawFavoritesList()
         {
@@ -240,10 +215,10 @@ namespace ZoneLevelGuide.Modules
             var sortedFavorites = favoriteTeleports.OrderBy(kvp => kvp.Value.Order).ThenByDescending(kvp => kvp.Value.AddedDate).ToList();
             int currentIndex = sortedFavorites.FindIndex(kvp => kvp.Key == teleportId);
             
-            if (currentIndex <= 0) // Already at top or not found
+            if (currentIndex <= 0)
                 return;
                 
-            // Swap order values with the item above
+            
             var currentItem = sortedFavorites[currentIndex];
             var aboveItem = sortedFavorites[currentIndex - 1];
             
@@ -268,10 +243,10 @@ namespace ZoneLevelGuide.Modules
             var sortedFavorites = favoriteTeleports.OrderBy(kvp => kvp.Value.Order).ThenByDescending(kvp => kvp.Value.AddedDate).ToList();
             int currentIndex = sortedFavorites.FindIndex(kvp => kvp.Key == teleportId);
             
-            if (currentIndex < 0 || currentIndex >= sortedFavorites.Count - 1) // Already at bottom or not found
+            if (currentIndex < 0 || currentIndex >= sortedFavorites.Count - 1)
                 return;
                 
-            // Swap order values with the item below
+            
             var currentItem = sortedFavorites[currentIndex];
             var belowItem = sortedFavorites[currentIndex + 1];
             
@@ -290,14 +265,14 @@ namespace ZoneLevelGuide.Modules
         
         private void DrawFavoriteItem(string teleportId, FavoriteTeleport favorite, int index, int totalCount)
         {
-            // Check if this item should be highlighted and calculate fade
+            
             double timeElapsed = (DateTime.Now - highlightStartTime).TotalMilliseconds;
             bool shouldHighlight = highlightedItemId == teleportId && timeElapsed < HIGHLIGHT_DURATION_MS;
             
-            // Draw highlight background for just this row with fade effect
+            
             if (shouldHighlight)
             {
-                // Calculate fade: start at full opacity, fade to 0 over the duration
+                
                 float fadeProgress = (float)(timeElapsed / HIGHLIGHT_DURATION_MS);
                 float opacity = Math.Max(0.0f, 0.4f * (1.0f - fadeProgress)); // Start at 0.4, fade to 0
                 
@@ -312,7 +287,7 @@ namespace ZoneLevelGuide.Modules
                 );
             }
             
-            // Up arrow button (disabled if first item)
+            
             if (index == 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.3f));
@@ -341,7 +316,7 @@ namespace ZoneLevelGuide.Modules
             
             ImGui.SameLine();
             
-            // Down arrow button (disabled if last item)
+            
             if (index == totalCount - 1)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.3f));
@@ -368,12 +343,12 @@ namespace ZoneLevelGuide.Modules
                 }
             }
             
-            // Add spacing between arrows and star
+            
             ImGui.SameLine();
-            ImGui.Dummy(new Vector2(8, 0)); // 8 pixels of spacing
+            ImGui.Dummy(new Vector2(8, 0));
             ImGui.SameLine();
             
-            // Star button to remove
+            
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.2f, 1.0f));
             if (ImGui.Button("★"))
             {
@@ -390,7 +365,7 @@ namespace ZoneLevelGuide.Modules
             
             ImGui.SameLine();
             
-            // Teleport button
+            
             if (teleporter != null)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, favorite.ButtonColor);
@@ -468,7 +443,7 @@ namespace ZoneLevelGuide.Modules
         {
             try
             {
-                // Use the HousingModule's shared estate teleportation logic
+                
                 HousingModule.ExecuteSharedEstateTeleportForFavorites(teleporter, estateIndex);
             }
             catch
