@@ -38,7 +38,6 @@ namespace ZoneLevelGuide
         private bool[] tabOpen;
         private readonly ITeleporterIpc? teleporter;
         private readonly IZoneModule[] zoneModules;
-        private string lastCharacterKey = string.Empty;
 
         private readonly (string name, string levels, Vector4 color)[] tabInfo = {
             ("★ Favorites", "Quick Access", new Vector4(1.0f, 0.8f, 0.2f, 1.0f)),
@@ -101,9 +100,6 @@ namespace ZoneLevelGuide
 
         public override void Draw()
         {
-            // Check for character changes
-            CheckForCharacterChange();
-            
             ApplyTheme();
             
             DrawHeader();
@@ -111,31 +107,6 @@ namespace ZoneLevelGuide
             DrawMainLayout();
             
             PopTheme();
-        }
-
-        private void CheckForCharacterChange()
-        {
-            if (teleporter != null)
-            {
-                try
-                {
-                    string currentCharacterKey = teleporter.GetCurrentCharacterKey();
-                    if (currentCharacterKey != lastCharacterKey && currentCharacterKey != "__unknown__")
-                    {
-                        lastCharacterKey = currentCharacterKey;
-                        
-                        // Refresh character-specific data
-                        if (BaseZoneModule.FavoritesManager is FavoritesModule favoritesModule)
-                        {
-                            favoritesModule.RefreshForCharacter();
-                        }
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    // Character information not available yet, skip this check
-                }
-            }
         }
 
         private void ApplyTheme()

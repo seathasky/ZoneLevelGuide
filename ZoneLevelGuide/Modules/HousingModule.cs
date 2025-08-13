@@ -18,31 +18,13 @@ namespace ZoneLevelGuide.Modules
         public override Vector4 Color => new Vector4(0.8f, 0.6f, 0.4f, 1.0f);
 
         private readonly Configuration? configuration;
-        private readonly ITeleporterIpc? teleporterIpc;
 
         public HousingModule(ITeleporterIpc? teleporter, Configuration? configuration) : base(teleporter) 
         {
             this.configuration = configuration;
-            this.teleporterIpc = teleporter;
         }
         
-        private Dictionary<int, string> GetSharedEstateNames()
-        {
-            if (configuration == null || teleporterIpc == null) 
-                return new Dictionary<int, string>();
-            
-            try
-            {
-                string characterKey = teleporterIpc.GetCurrentCharacterKey();
-                var characterProfile = configuration.GetCharacterProfile(characterKey);
-                return characterProfile.SharedEstateNames;
-            }
-            catch (InvalidOperationException)
-            {
-                // Character information not available yet, return empty dictionary
-                return new Dictionary<int, string>();
-            }
-        }
+        private Dictionary<int, string> SharedEstateNames => configuration?.SharedEstateNames ?? new Dictionary<int, string>();
         
         public static void ExecuteSharedEstateTeleportForFavorites(ITeleporterIpc? teleporter, int estateIndex)
         {
@@ -326,9 +308,8 @@ namespace ZoneLevelGuide.Modules
             {
                 int idx = estates[i].index;
                 string estateInfo = GetEstateDisplayName(estates[i].id);
-                var sharedEstateNames = GetSharedEstateNames();
-                string customName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                    ? sharedEstateNames[idx]
+                string customName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                    ? SharedEstateNames[idx]
                     : $"Shared Estate {i + 1}";
 
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
@@ -434,9 +415,8 @@ namespace ZoneLevelGuide.Modules
                         
                         if (!renameBuffers.ContainsKey(idx))
                         {
-                            var sharedEstateNames = GetSharedEstateNames();
-                            renameBuffers[idx] = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                                ? sharedEstateNames[idx]
+                            renameBuffers[idx] = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                ? SharedEstateNames[idx]
                                 : $"Shared Estate {i + 1}";
                         }
                         
@@ -464,13 +444,12 @@ namespace ZoneLevelGuide.Modules
                             
                             if (!string.IsNullOrWhiteSpace(newName))
                             {
-                                var sharedEstateNames = GetSharedEstateNames();
-                                string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                                    ? sharedEstateNames[idx]
+                                string oldName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                    ? SharedEstateNames[idx]
                                     : $"Shared Estate {i + 1}";
                                     
                                 // Force update the configuration directly
-                                sharedEstateNames[idx] = newName;
+                                SharedEstateNames[idx] = newName;
                                 renameBuffers.Remove(idx); // Clear the buffer completely so it reinitializes with new name
                                 SaveSharedEstateNames();
                                 
@@ -492,12 +471,11 @@ namespace ZoneLevelGuide.Modules
                         
                         if (resetPressed)
                         {
-                            var sharedEstateNames = GetSharedEstateNames();
-                            string oldName = sharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(sharedEstateNames[idx])
-                                ? sharedEstateNames[idx]
+                            string oldName = SharedEstateNames.ContainsKey(idx) && !string.IsNullOrWhiteSpace(SharedEstateNames[idx])
+                                ? SharedEstateNames[idx]
                                 : $"Shared Estate {i + 1}";
                                 
-                            sharedEstateNames[idx] = defaultTitle;
+                            SharedEstateNames[idx] = defaultTitle;
                             renameBuffers[idx] = string.Empty;
                             SaveSharedEstateNames();
                             
