@@ -10,6 +10,7 @@ namespace ZoneLevelGuide.Modules
     {
         private Dictionary<string, FavoriteTeleport> favoriteTeleports = new();
         private readonly Configuration? configuration;
+        private readonly ITeleporterIpc? teleporterIpc;
         
         public override string ZoneName => "Favorites";
         public override string LevelRange => "Quick Access";
@@ -18,6 +19,7 @@ namespace ZoneLevelGuide.Modules
         public FavoritesModule(ITeleporterIpc? teleporter, Configuration? configuration = null) : base(teleporter) 
         {
             this.configuration = configuration;
+            this.teleporterIpc = teleporter;
             if (configuration != null)
             {
                 LoadFavoritesFromConfiguration();
@@ -38,46 +40,66 @@ namespace ZoneLevelGuide.Modules
         private void LoadFavoritesFromConfiguration()
         {
             favoriteTeleports.Clear();
-            if (configuration?.FavoriteTeleports == null) return;
+            if (configuration == null || teleporterIpc == null) return;
             
-            foreach (var kvp in configuration.FavoriteTeleports)
+            try
             {
-                var data = kvp.Value;
-                favoriteTeleports[kvp.Key] = new FavoriteTeleport
+                string characterKey = teleporterIpc.GetCurrentCharacterKey();
+                var characterProfile = configuration.GetCharacterProfile(characterKey);
+                
+                foreach (var kvp in characterProfile.FavoriteTeleports)
                 {
-                    Name = data.Name,
-                    Zone = data.Zone,
-                    Command = data.Command,
-                    AetheryteId = data.AetheryteId,
-                    ButtonColor = data.ButtonColor,
-                    AddedDate = data.AddedDate,
-                    Order = data.Order
-                };
+                    var data = kvp.Value;
+                    favoriteTeleports[kvp.Key] = new FavoriteTeleport
+                    {
+                        Name = data.Name,
+                        Zone = data.Zone,
+                        Command = data.Command,
+                        AetheryteId = data.AetheryteId,
+                        ButtonColor = data.ButtonColor,
+                        AddedDate = data.AddedDate,
+                        Order = data.Order
+                    };
+                }
             }
-        }
-
-        private void SaveFavorites()
+            catch (InvalidOperationException)
+            {
+                // Character information not available yet (not on main thread or no character logged in)
+                // This is fine during initialization, favorites will load when character is available
+            }
+        }        private void SaveFavorites()
         {
-            if (configuration == null) return;
+            if (configuration == null || teleporterIpc == null) return;
             
-            configuration.FavoriteTeleports.Clear();
-            foreach (var kvp in favoriteTeleports)
+            try
             {
-                var fav = kvp.Value;
-                configuration.FavoriteTeleports[kvp.Key] = new FavoriteTeleportData
+                string characterKey = teleporterIpc.GetCurrentCharacterKey();
+                var characterProfile = configuration.GetCharacterProfile(characterKey);
+                
+                characterProfile.FavoriteTeleports.Clear();
+                foreach (var kvp in favoriteTeleports)
                 {
-                    Name = fav.Name,
-                    Zone = fav.Zone,
-                    Command = fav.Command,
-                    AetheryteId = fav.AetheryteId,
-                    ButtonColor = fav.ButtonColor,
-                    AddedDate = fav.AddedDate,
-                    Order = fav.Order
-                };
+                    var fav = kvp.Value;
+                    characterProfile.FavoriteTeleports[kvp.Key] = new FavoriteTeleportData
+                    {
+                        Name = fav.Name,
+                        Zone = fav.Zone,
+                        Command = fav.Command,
+                        AetheryteId = fav.AetheryteId,
+                        ButtonColor = fav.ButtonColor,
+                        AddedDate = fav.AddedDate,
+                        Order = fav.Order
+                    };
+                }
+                configuration.Save();
+                
+                ReassignOrderValues();
             }
-            configuration.Save();
-            
-            ReassignOrderValues();
+            catch (InvalidOperationException)
+            {
+                // Character information not available yet, skip saving for now
+                // This should rarely happen since saves are usually triggered by user actions
+            }
         }
         
         private void ReassignOrderValues()
@@ -97,6 +119,11 @@ namespace ZoneLevelGuide.Modules
                 fav.Order = i;
                 favoriteTeleports[key] = fav;
             }
+        }
+
+        public void RefreshForCharacter()
+        {
+            LoadFavoritesFromConfiguration();
         }
 
         public bool IsFavorite(string teleportId)

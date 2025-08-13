@@ -13,6 +13,7 @@ namespace ZoneLevelGuide
     public interface ITeleporterIpc
     {
         void Teleport(uint aetheryteId);
+        string GetCurrentCharacterKey();
     }
 
     public class TeleporterService : ITeleporterIpc
@@ -252,6 +253,26 @@ namespace ZoneLevelGuide
                 chatGui?.Print($"Error teleporting to {displayName}: {ex.Message}");
                 return false;
             }
+        }
+
+        public string GetCurrentCharacterKey()
+        {
+            try
+            {
+                if (clientState?.LocalPlayer != null)
+                {
+                    var player = clientState.LocalPlayer;
+                    // Use character name as the key (simple but should work for most cases)
+                    // In the future, we could add more uniqueness if needed
+                    return player.Name.ToString();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Not on main thread or character not available yet
+                // Return a default key that will be updated later
+            }
+            return "__unknown__";
         }
 
         public async Task StartAutoDiscovery(uint startId = 0, uint endId = 999, int delaySeconds = 10, string logPath = "AetheryteDiscoveryLog.txt")
