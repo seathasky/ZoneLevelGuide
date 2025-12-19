@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace ZoneLevelGuide
 {
@@ -24,6 +25,8 @@ namespace ZoneLevelGuide
         private DateTime lastTeleport = DateTime.MinValue;
         private Dalamud.Plugin.Ipc.ICallGateSubscriber<uint, byte, bool>? teleportSubscriber;
         private IClientState? clientState;
+        private IPlayerState? playerState;
+        private IObjectTable? objectTable;
         private bool isAutoDiscoveryRunning = false;
 
         private readonly Dictionary<uint, string> aetheryteDisplayNames = new()
@@ -154,12 +157,14 @@ namespace ZoneLevelGuide
             { 238, "Dock Poga" }
         };
 
-        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, IClientState? clientState = null)
+        public TeleporterService(IDalamudPluginInterface pluginInterface, IChatGui chatGui, ICommandManager commandManager, IClientState? clientState = null, IPlayerState? playerState = null, IObjectTable? objectTable = null)
         {
             this.chatGui = chatGui;
             this.pluginInterface = pluginInterface;
             this.commandManager = commandManager;
             this.clientState = clientState;
+            this.playerState = playerState;
+            this.objectTable = objectTable;
             
             try
             {
@@ -259,13 +264,9 @@ namespace ZoneLevelGuide
         {
             try
             {
-                if (clientState?.LocalPlayer != null)
-                {
-                    var player = clientState.LocalPlayer;
-                    // Use character name as the key (simple but should work for most cases)
-                    // In the future, we could add more uniqueness if needed
+                var player = this.objectTable?.LocalPlayer;
+                if (player != null)
                     return player.Name.ToString();
-                }
             }
             catch (InvalidOperationException)
             {
@@ -312,11 +313,14 @@ namespace ZoneLevelGuide
 
                 await Task.Delay(delaySeconds * 1000);
 
-                if (clientState != null && clientState.LocalPlayer != null)
-                {
+                if (clientState != null)
                     territory = clientState.TerritoryType.ToString();
-                    var player = clientState.LocalPlayer;
-                    coords = $"{player.Position.X:0.0},{player.Position.Y:0.0},{player.Position.Z:0.0}";
+
+                var player = this.objectTable?.LocalPlayer;
+                if (player != null)
+                {
+                    var pos = player.Position;
+                    coords = $"{pos.X:0.0},{pos.Y:0.0},{pos.Z:0.0}";
                 }
 
                 string logLine = $"{DateTime.Now:u} | ID: {id} | Success: {result} | Error: {error} | Territory: {territory} | Coords: {coords}";
@@ -340,6 +344,19 @@ namespace ZoneLevelGuide
             StopAutoDiscovery();
             
             teleportSubscriber = null;
+        }
+
+        private object? GetLocalPlayerObject()
+        {
+            // Use the object table's LocalPlayer (v14 API)
+            try
+            {
+                if (this.objectTable?.LocalPlayer != null)
+                    return this.objectTable.LocalPlayer;
+            }
+            catch { }
+
+            return null;
         }
     }
 }

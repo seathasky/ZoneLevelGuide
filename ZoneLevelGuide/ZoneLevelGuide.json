@@ -8,5 +8,5 @@
   "Tags": [ "UI", "Leveling", "Zone" ],
   "RepoUrl": "https://github.com/seathasky/ZoneLevelGuide",
   "ApplicableVersion": "any",
-  "DalamudApiLevel": 13
+  "DalamudApiLevel": 14
 }

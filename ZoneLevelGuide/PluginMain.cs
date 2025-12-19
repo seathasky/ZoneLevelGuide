@@ -1,4 +1,5 @@
 using Dalamud.Game.Command;
+using Dalamud.Game.ClientState;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
@@ -21,7 +22,9 @@ namespace ZoneLevelGuide
             IDalamudPluginInterface pluginInterface,
             ICommandManager commandManager,
             IChatGui chatGui,
-            IClientState clientState)
+            IClientState clientState,
+            IPlayerState playerState,
+            IObjectTable objectTable)
         {
             this.pluginInterface = pluginInterface;
             this.commandManager = commandManager;
@@ -29,7 +32,7 @@ namespace ZoneLevelGuide
             Configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Configuration.Initialize(pluginInterface);
 
-            this.teleporterService = new TeleporterService(pluginInterface, chatGui, commandManager, clientState);
+            this.teleporterService = new TeleporterService(pluginInterface, chatGui, commandManager, clientState, playerState, objectTable);
 
             windowSystem = new WindowSystem("ZoneLevelGuide");
             zoneLevelWindow = new ZoneLevelWindow(this.teleporterService, Configuration);

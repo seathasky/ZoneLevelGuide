@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/13.0.0">
+<Project Sdk="Dalamud.NET.Sdk/14.0.1">
   <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Authors>Seathasky</Authors>
-    <Version>2.0.0.3</Version>
+    <Version>2.0.0.4</Version>
     <Description>Shows level ranges for all zones in FFXIV</Description>
     <PackageProjectUrl>https://github.com/Seathasky/ZoneLevelGuide</PackageProjectUrl>
     <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
