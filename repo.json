@@ -4,7 +4,7 @@
     "Name": "Zone Level Guide",
     "Description": "Shows level ranges in zones and teleport replacement.",
     "InternalName": "ZoneLevelGuide",
-    "AssemblyVersion": "2.10.1.2",
+    "AssemblyVersion": "2.0.0.5",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Seathasky/ZoneLevelGuide",
