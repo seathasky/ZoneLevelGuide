@@ -4,7 +4,10 @@ using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
 using System.Numerics;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Textures;
+using Dalamud.Interface.Textures.TextureWraps;
 using System;
+using System.IO;
 using ZoneLevelGuide.Modules;
 
 namespace ZoneLevelGuide
@@ -38,7 +41,9 @@ namespace ZoneLevelGuide
         private bool[] tabOpen;
         private readonly ITeleporterIpc? teleporter;
         private readonly IZoneModule[] zoneModules;
+        private readonly ITextureProvider textureProvider;
         private string lastCharacterKey = string.Empty;
+        private readonly string? headerIconPath;
 
         private readonly (string name, string levels, Vector4 color)[] tabInfo = {
             ("★ Favorites", "Quick Access", new Vector4(1.0f, 0.8f, 0.2f, 1.0f)),
@@ -56,11 +61,17 @@ namespace ZoneLevelGuide
             ("PvP", "Level 30+", new Vector4(0.9f, 0.4f, 0.4f, 1.0f))
         };
 
-        public ZoneLevelWindow(ITeleporterIpc? teleporter = null, Configuration? configuration = null) : base(
+        public ZoneLevelWindow(
+            IDalamudPluginInterface pluginInterface,
+            ITextureProvider textureProvider,
+            ITeleporterIpc? teleporter = null,
+            Configuration? configuration = null) : base(
             "Zone Level Guide",
             ImGuiWindowFlags.NoCollapse)
         {
             this.teleporter = teleporter;
+            this.textureProvider = textureProvider;
+            this.headerIconPath = ResolveHeaderIconPath(pluginInterface);
 
             // Initialize zone modules
             var favoritesModule = new FavoritesModule(teleporter, configuration);
@@ -85,6 +96,23 @@ namespace ZoneLevelGuide
 
             SetupWindow();
             tabOpen = new bool[tabInfo.Length];
+        }
+
+        private static string? ResolveHeaderIconPath(IDalamudPluginInterface pluginInterface)
+        {
+            try
+            {
+                var pluginDirectory = Path.GetDirectoryName(pluginInterface.AssemblyLocation.FullName);
+                if (string.IsNullOrEmpty(pluginDirectory))
+                    return null;
+
+                var iconPath = Path.Combine(pluginDirectory, "Images", "icon.png");
+                return File.Exists(iconPath) ? iconPath : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void SetupWindow()
@@ -187,9 +215,10 @@ namespace ZoneLevelGuide
         private void DrawHeader()
         {
             ImGui.PushFont(ImGui.GetIO().Fonts.Fonts[0]);
-            
+
             var windowWidth = ImGui.GetWindowWidth();
-            
+            DrawHeaderIcon();
+
             // Title
             DrawCenteredText("FINAL FANTASY XIV - Zone Level Guide", windowWidth, TitleColor, 1.4f);
             
@@ -200,6 +229,21 @@ namespace ZoneLevelGuide
             DrawCenteredText(subtitleText, windowWidth, SubtitleColor);
             
             ImGui.PopFont();
+        }
+
+        private void DrawHeaderIcon()
+        {
+            if (string.IsNullOrEmpty(headerIconPath))
+                return;
+
+            ISharedImmediateTexture texture = textureProvider.GetFromFileAbsolute(headerIconPath);
+            IDalamudTextureWrap wrap = texture.GetWrapOrEmpty();
+
+            var iconSize = new Vector2(28f, 28f);
+            var currentY = ImGui.GetCursorPosY();
+            ImGui.SetCursorPos(new Vector2(8f, currentY));
+            ImGui.Image(wrap.Handle, iconSize);
+            ImGui.SetCursorPosY(currentY);
         }
 
         private void DrawCenteredText(string text, float windowWidth, Vector4 color, float fontScale = 1.0f)

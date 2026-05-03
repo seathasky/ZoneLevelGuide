@@ -4,15 +4,15 @@
     "Name": "Zone Level Guide",
     "Description": "Shows level ranges in zones and teleport replacement.",
     "InternalName": "ZoneLevelGuide",
-    "AssemblyVersion": "2.0.0.5",
+    "AssemblyVersion": "2.0.0.6",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Seathasky/ZoneLevelGuide",
-    "DownloadLinkInstall": "https://github.com/Seathasky/ZoneLevelGuide/releases/download/v2.0.0.5/ZoneLevelGuide.zip",
+    "DownloadLinkInstall": "https://github.com/Seathasky/ZoneLevelGuide/releases/download/v2.0.0.6/ZoneLevelGuide.zip",
     "DownloadLinkTesting": "",
     "DownloadLinkUpdate": "",
     "Tags": [ "zone", "leveling" ],
-    "IconUrl": "https://raw.githubusercontent.com/Seathasky/ZoneLevelGuide/main/ZoneLevelGuide/Images/icon.png",
+    "IconUrl": "https://cdn.jsdelivr.net/gh/seathasky/ZoneLevelGuide@main/ZoneLevelGuide/Images/icon.png",
     "ImageUrls": []
   }
 ]

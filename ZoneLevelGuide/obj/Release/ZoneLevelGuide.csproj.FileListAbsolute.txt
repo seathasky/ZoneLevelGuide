@@ -1,0 +1,11 @@
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.csproj.AssemblyReference.cache
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.AssemblyInfoInputs.cache
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.AssemblyInfo.cs
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.csproj.CoreCompileInputs.cache
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.sourcelink.json
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\bin\Release\ZoneLevelGuide.json
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\bin\Release\Images\icon.png
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\bin\Release\ZoneLevelGuide.deps.json
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\bin\Release\ZoneLevelGuide.dll
+C:\Users\Matthew\Documents\GitHub\ZoneLevelGuide\ZoneLevelGuide\obj\Release\ZoneLevelGuide.dll

@@ -21,6 +21,7 @@ namespace ZoneLevelGuide
         public PluginMain(
             IDalamudPluginInterface pluginInterface,
             ICommandManager commandManager,
+            ITextureProvider textureProvider,
             IChatGui chatGui,
             IClientState clientState,
             IPlayerState playerState,
@@ -35,7 +36,7 @@ namespace ZoneLevelGuide
             this.teleporterService = new TeleporterService(pluginInterface, chatGui, commandManager, clientState, playerState, objectTable);
 
             windowSystem = new WindowSystem("ZoneLevelGuide");
-            zoneLevelWindow = new ZoneLevelWindow(this.teleporterService, Configuration);
+            zoneLevelWindow = new ZoneLevelWindow(pluginInterface, textureProvider, this.teleporterService, Configuration);
             windowSystem.AddWindow(zoneLevelWindow);
 
             pluginInterface.UiBuilder.Draw += DrawUI;

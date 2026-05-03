@@ -5,6 +5,7 @@
   "Punchline": "Never wonder 'What level is this zone?' again!",
   "InternalName": "ZoneLevelGuide",
   "LoadIcon": "Images/icon.png",
+  "IconUrl": "https://cdn.jsdelivr.net/gh/seathasky/ZoneLevelGuide@main/ZoneLevelGuide/Images/icon.png",
   "Tags": [ "UI", "Leveling", "Zone" ],
   "RepoUrl": "https://github.com/seathasky/ZoneLevelGuide",
   "ApplicableVersion": "any",
